@@ -93,7 +93,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in filteredTestCases" :key="item.id">
+          <tr v-for="item in paginatedTestCases" :key="item.id">
             <td class="py-3">
               <div class="font-weight-bold text-body-2 text-indigo-darken-3">
                 {{ item.test_case_code || '#' + item.id }}
@@ -160,6 +160,35 @@
           </tr>
         </tbody>
       </v-table>
+
+      <div
+        v-if="filteredTestCases.length > 0"
+        class="d-flex flex-wrap justify-space-between align-center pa-4 border-t"
+        style="row-gap: 12px;"
+      >
+        <div class="text-caption text-grey">
+          Showing {{ pageStart }}-{{ pageEnd }} of {{ filteredTestCases.length }} records
+        </div>
+
+        <div class="d-flex align-center" style="gap: 16px;">
+          <v-select
+            v-model="itemsPerPage"
+            :items="itemsPerPageOptions"
+            label="Rows per page"
+            variant="outlined"
+            density="compact"
+            hide-details
+            style="max-width: 140px;"
+          ></v-select>
+
+          <v-pagination
+            v-model="currentPage"
+            :length="totalPages"
+            :total-visible="5"
+            density="comfortable"
+          ></v-pagination>
+        </div>
+      </div>
     </v-card>
 
     <v-dialog v-model="dialog" max-width="900px" persistent>
@@ -414,7 +443,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as XLSX from 'xlsx' 
 import { jsPDF } from 'jspdf'
@@ -456,6 +485,10 @@ const isEdit = ref(false)
 const activeTab = ref('header')
 const viewDialog = ref(false)
 const viewItem = ref(null)
+
+const itemsPerPage = ref(10)
+const currentPage = ref(1)
+const itemsPerPageOptions = [10, 25, 50, 100]
 
 const departmentOptions = [
   'PEM', 'ADGM', 'PMM', 'SMHR', 'PB8', 'PB7', 'PB4', 'PB10', 
@@ -529,6 +562,36 @@ const filteredTestCases = computed(() => {
 
     return matchesSearch && matchesStatus && matchesPriority && matchesCycle
   })
+})
+
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(filteredTestCases.value.length / itemsPerPage.value))
+})
+
+const paginatedTestCases = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  return filteredTestCases.value.slice(start, start + itemsPerPage.value)
+})
+
+const pageStart = computed(() => {
+  if (filteredTestCases.value.length === 0) return 0
+  return (currentPage.value - 1) * itemsPerPage.value + 1
+})
+
+const pageEnd = computed(() => {
+  return Math.min(currentPage.value * itemsPerPage.value, filteredTestCases.value.length)
+})
+
+watch([searchQuery, statusFilter, priorityFilter, cycleFilter], () => {
+  currentPage.value = 1
+})
+
+watch(itemsPerPage, () => {
+  currentPage.value = 1
+})
+
+watch(totalPages, (newTotal) => {
+  if (currentPage.value > newTotal) currentPage.value = newTotal
 })
 
 const getCycleName = (cycleId) => {
@@ -913,7 +976,7 @@ const exportSinglePDF = (item) => {
 
   y += row3Height + 6
 
-  // --- STEPS TABLE ---
+  
   doc.setFontSize(10)
   doc.setFont(undefined, 'bold')
   doc.setTextColor(15, 23, 42)
