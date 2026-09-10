@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "targets": {
     "net8.0": {
       "Azure.Core/1.38.0": {
@@ -4448,11 +4448,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Users\\P000419\\Documents\\Uat Mockup Project\\uat-mockup-project\\UAT_System_API\\UAT_System_API\\UAT_System_API.csproj",
+      "projectUniqueName": "D:\\Users\\P000419\\Documents\\GitHub\\Uat Mockup Project\\uat-mockup-project\\UAT_System_API\\UAT_System_API\\UAT_System_API.csproj",
       "projectName": "UAT_System_API",
-      "projectPath": "D:\\Users\\P000419\\Documents\\Uat Mockup Project\\uat-mockup-project\\UAT_System_API\\UAT_System_API\\UAT_System_API.csproj",
+      "projectPath": "D:\\Users\\P000419\\Documents\\GitHub\\Uat Mockup Project\\uat-mockup-project\\UAT_System_API\\UAT_System_API\\UAT_System_API.csproj",
       "packagesPath": "D:\\Users\\P000419\\.nuget\\packages\\",
-      "outputPath": "D:\\Users\\P000419\\Documents\\Uat Mockup Project\\uat-mockup-project\\UAT_System_API\\UAT_System_API\\obj\\",
+      "outputPath": "D:\\Users\\P000419\\Documents\\GitHub\\Uat Mockup Project\\uat-mockup-project\\UAT_System_API\\UAT_System_API\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -4472,6 +4472,7 @@
       },
       "frameworks": {
         "net8.0": {
+          "framework": "net8.0",
           "targetAlias": "net8.0",
           "projectReferences": {}
         }
@@ -4486,10 +4487,11 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.300"
+      "SdkAnalysisLevel": "10.0.400"
     },
     "frameworks": {
       "net8.0": {
+        "framework": "net8.0",
         "targetAlias": "net8.0",
         "dependencies": {
           "Microsoft.EntityFrameworkCore.Design": {
@@ -4524,6 +4526,24 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Ref",
+            "version": "[8.0.30, 8.0.30]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Host.win-x64",
+            "version": "[8.0.30, 8.0.30]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Ref",
+            "version": "[8.0.30, 8.0.30]"
+          },
+          {
+            "name": "Microsoft.WindowsDesktop.App.Ref",
+            "version": "[8.0.30, 8.0.30]"
+          }
+        ],
         "frameworkReferences": {
           "Microsoft.AspNetCore.App": {
             "privateAssets": "none"
@@ -4532,7 +4552,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.400/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

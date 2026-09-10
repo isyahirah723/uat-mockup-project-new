@@ -70,6 +70,110 @@
             </div>
 
             
+            <div v-else-if="activeMenu === 'email'">
+              <div class="text-h6 font-weight-bold mb-4">Email Notifications</div>
+              <v-row>
+                <v-col cols="12">
+                  <v-switch
+                    v-model="emailSettings.emailEnabled"
+                    label="Enable Email Notifications"
+                    color="primary"
+                    inset
+                  ></v-switch>
+                  <div class="text-caption text-grey mt-1 mb-2">
+                    {{ emailSettings.emailEnabled ? '✅ System will send email notifications via SMTP' : '❌ Email notifications are turned off' }}
+                  </div>
+                </v-col>
+              </v-row>
+
+              <v-row :class="{ 'disabled-section': !emailSettings.emailEnabled }">
+                <v-col cols="12" sm="8">
+                  <v-text-field
+                    v-model="emailSettings.smtpHost"
+                    label="SMTP Host"
+                    placeholder="smtp.gmail.com"
+                    variant="outlined"
+                    density="compact"
+                    :disabled="!emailSettings.emailEnabled"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="4">
+                  <v-text-field
+                    v-model.number="emailSettings.smtpPort"
+                    label="SMTP Port"
+                    type="number"
+                    placeholder="587"
+                    variant="outlined"
+                    density="compact"
+                    :disabled="!emailSettings.emailEnabled"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="emailSettings.smtpUser"
+                    label="SMTP Username"
+                    variant="outlined"
+                    density="compact"
+                    :disabled="!emailSettings.emailEnabled"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="emailSettings.smtpPassword"
+                    label="SMTP Password"
+                    type="password"
+                    placeholder="Leave blank to keep current password"
+                    variant="outlined"
+                    density="compact"
+                    :disabled="!emailSettings.emailEnabled"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="emailSettings.smtpSecure"
+                    label="Use Secure Connection (SSL/TLS)"
+                    color="primary"
+                    inset
+                    :disabled="!emailSettings.emailEnabled"
+                  ></v-switch>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="emailSettings.fromEmail"
+                    label="From Email"
+                    placeholder="noreply@kotrapharma.com"
+                    variant="outlined"
+                    density="compact"
+                    :disabled="!emailSettings.emailEnabled"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="emailSettings.toEmail"
+                    label="Default Notification Recipient"
+                    placeholder="qa-team@kotrapharma.com"
+                    variant="outlined"
+                    density="compact"
+                    :disabled="!emailSettings.emailEnabled"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12">
+                  <v-btn
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                    prepend-icon="mdi-email-fast-outline"
+                    :disabled="!emailSettings.emailEnabled"
+                    :loading="testingEmail"
+                    @click="sendTestEmail"
+                  >
+                    Send Test Email
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </div>
+
+            
             <div v-else-if="activeMenu === 'darkmode'">
               <div class="text-h6 font-weight-bold mb-4">Appearance / Theme</div>
               <v-row>
@@ -94,14 +198,23 @@
               
               <v-row class="mb-4">
                 <v-col cols="12" md="4" class="text-center">
-                  <v-avatar
-                    size="120"
-                    class="mb-2 profile-avatar"
-                    style="font-size: 48px;"
-                  >
-                    {{ profileSettings.fullName?.charAt(0)?.toUpperCase() || 'U' }}
+                  <v-avatar size="120" class="mb-2 profile-avatar" style="font-size: 48px;">
+                    <v-img v-if="profileSettings.avatar" :src="profileSettings.avatar" alt="avatar" cover></v-img>
+                    <span v-else>{{ userInitials }}</span>
                   </v-avatar>
-                  <div class="text-subtitle-1 font-weight-bold">{{ profileSettings.fullName }}</div>
+                  <div>
+                    <v-btn size="small" variant="outlined" prepend-icon="mdi-camera" class="text-capitalize" @click="triggerAvatarUpload">
+                      Change Photo
+                    </v-btn>
+                    <input
+                      ref="avatarInput"
+                      type="file"
+                      accept="image/*"
+                      class="d-none"
+                      @change="onAvatarChange"
+                    />
+                  </div>
+                  <div class="text-subtitle-1 font-weight-bold mt-2">{{ profileSettings.fullName }}</div>
                   <div class="text-caption text-grey">{{ profileSettings.role }}</div>
                 </v-col>
                 <v-col cols="12" md="8">
@@ -146,13 +259,13 @@
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12" sm="6">
-                  <v-text-field
+                  <v-select
                     v-model="profileSettings.role"
                     label="Role / Position"
+                    :items="roleOptions"
                     variant="outlined"
                     density="compact"
-                    readonly
-                  ></v-text-field>
+                  ></v-select>
                 </v-col>
                 <v-col cols="12" sm="6">
                   <v-text-field
@@ -319,83 +432,11 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    
-    <v-dialog v-model="helpDialog" max-width="500px">
-      <v-card class="rounded-xl">
-        <v-card-title class="text-white pa-4 d-flex align-center justify-space-between" style="background-color: #1e293b;">
-          <span class="text-h6 font-weight-bold">
-            <v-icon color="white" class="mr-2">mdi-help-circle</v-icon>
-            Help & Support
-          </span>
-          <v-btn icon variant="text" size="small" @click="helpDialog = false">
-            <v-icon color="white">mdi-close</v-icon>
-          </v-btn>
-        </v-card-title>
-        <v-card-text class="pa-6">
-          <div class="text-subtitle-1 font-weight-bold mb-2">📧 Email Support</div>
-          <div class="text-body-2 mb-4">
-            <a href="mailto:support@uat-system.com" style="color: #4338ca; text-decoration: none;">
-              support@uat-system.com
-            </a>
-          </div>
-
-          <div class="text-subtitle-1 font-weight-bold mb-2">📞 Phone Support</div>
-          <div class="text-body-2 mb-4">+60 12-345 6789</div>
-
-          <div class="text-subtitle-1 font-weight-bold mb-2">🕐 Working Hours</div>
-          <div class="text-body-2 mb-4">Monday - Friday, 9:00 AM - 6:00 PM (MYT)</div>
-
-          <v-divider class="my-4"></v-divider>
-
-          <div class="text-subtitle-1 font-weight-bold mb-2">📋 FAQ</div>
-          <v-list density="compact" style="background: transparent;">
-            <v-list-item 
-              v-for="(faq, index) in faqList" 
-              :key="index"
-              class="mb-2 rounded-lg"
-              style="border: 1px solid #e2e8f0;"
-            >
-              <template v-slot:prepend>
-                <v-icon color="primary" size="small">mdi-help-circle-outline</v-icon>
-              </template>
-              <v-list-item-title class="text-body-2 font-weight-bold">{{ faq.question }}</v-list-item-title>
-              <v-list-item-subtitle class="text-caption text-grey">{{ faq.answer }}</v-list-item-subtitle>
-            </v-list-item>
-          </v-list>
-        </v-card-text>
-        <v-card-actions class="pa-4 border-t">
-          <v-spacer></v-spacer>
-          <v-btn color="primary" variant="text" @click="helpDialog = false">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    
-    <v-dialog v-model="logoutDialog" max-width="400px">
-      <v-card class="rounded-xl">
-        <v-card-title class="text-white pa-4" style="background-color: #dc2626;">
-          <span class="text-h6 font-weight-bold">
-            <v-icon color="white" class="mr-2">mdi-logout</v-icon>
-            Confirm Logout
-          </span>
-        </v-card-title>
-        <v-card-text class="pa-6">
-          <div class="text-body-1">Are you sure you want to logout?</div>
-          <div class="text-caption text-grey mt-1">You will need to login again to access the system.</div>
-        </v-card-text>
-        <v-card-actions class="pa-4 border-t">
-          <v-spacer></v-spacer>
-          <v-btn variant="text" @click="logoutDialog = false">Cancel</v-btn>
-          <v-btn color="error" class="text-white" @click="confirmLogout">Logout</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
   </v-container>
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
@@ -404,9 +445,8 @@ const API_BASE_URL = 'https://localhost:7049/api'
 const router = useRouter()
 const activeMenu = ref('general')
 const saving = ref(false)
+const profileLoading = ref(false)
 const auditDialog = ref(false)
-const helpDialog = ref(false)
-const logoutDialog = ref(false)
 
 function readSavedSettings() {
   try {
@@ -448,6 +488,7 @@ const toggleDarkMode = (val) => {
 
 const menuItems = [
   { title: 'General', value: 'general', icon: 'mdi-cog' },
+  { title: 'Email Notifications', value: 'email', icon: 'mdi-email-outline' },
   { title: 'Dark Mode', value: 'darkmode', icon: 'mdi-theme-light-dark' },
   { title: 'Profile', value: 'profile', icon: 'mdi-account' },
   { title: 'Audit Log', value: 'audit', icon: 'mdi-history' }
@@ -461,16 +502,115 @@ const generalSettings = reactive({
 })
 
 
+const emailSettings = reactive({
+  emailEnabled: savedData.email?.emailEnabled ?? false,
+  smtpHost: savedData.email?.smtpHost || '',
+  smtpPort: savedData.email?.smtpPort || 587,
+  smtpUser: savedData.email?.smtpUser || '',
+  smtpPassword: '',
+  smtpSecure: savedData.email?.smtpSecure ?? true,
+  fromEmail: savedData.email?.fromEmail || '',
+  toEmail: savedData.email?.toEmail || ''
+})
+
+const testingEmail = ref(false)
+
+const sendTestEmail = async () => {
+  testingEmail.value = true
+  try {
+    await axios.post(`${API_BASE_URL}/SystemSettings/test-email`)
+    showNotification('📧 Test Email Sent', `A test email was sent to ${emailSettings.toEmail || 'the configured recipient'}.`, 'success', 'email-check')
+  } catch (err) {
+    console.error('Gagal hantar test email:', err)
+    showNotification('⚠️ Test Email Failed', 'Could not send test email. Please check your SMTP settings.', 'error', 'email-alert')
+  } finally {
+    testingEmail.value = false
+  }
+}
+
+
 const profileSettings = reactive({
   fullName: savedData.profile?.fullName || 'System Administrator',
-  email: savedData.profile?.email || 'admin@uat-system.com',
+  email: savedData.profile?.email || 'admin@kotrapharma.com',
   role: savedData.profile?.role || 'UAT Tester / Admin',
   department: savedData.profile?.department || 'IT',
   phone: savedData.profile?.phone || '',
   location: savedData.profile?.location || '',
   bio: savedData.profile?.bio || '',
+  avatar: savedData.profile?.avatar || '',
   password: ''
 })
+
+const userInitials = computed(() => {
+  const name = profileSettings.fullName || 'User'
+  return name
+    .split(' ')
+    .map(word => word.charAt(0))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+})
+
+const roleOptions = [
+  'UAT Manager / QA Lead',
+  'Business Tester',
+  'Compliance Officer / Auditor',
+  'UAT Tester / Admin'
+]
+
+const avatarInput = ref(null)
+
+const triggerAvatarUpload = () => {
+  avatarInput.value?.click()
+}
+
+const onAvatarChange = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    showNotification('⚠️ Invalid File', 'Please choose an image file.', 'error', 'alert-circle')
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = () => {
+    profileSettings.avatar = reader.result
+  }
+  reader.readAsDataURL(file)
+}
+
+const loadSystemSettingsFromServer = async () => {
+  profileLoading.value = true
+  try {
+    const response = await axios.get(`${API_BASE_URL}/SystemSettings`)
+    if (response.data) {
+      Object.assign(generalSettings, {
+        systemName: response.data.systemName ?? generalSettings.systemName,
+        language: response.data.language ?? generalSettings.language,
+        timezone: response.data.timezone ?? generalSettings.timezone
+      })
+      Object.assign(emailSettings, {
+        emailEnabled: response.data.emailEnabled ?? emailSettings.emailEnabled,
+        smtpHost: response.data.smtpHost ?? emailSettings.smtpHost,
+        smtpPort: response.data.smtpPort ?? emailSettings.smtpPort,
+        smtpUser: response.data.smtpUser ?? emailSettings.smtpUser,
+        smtpSecure: response.data.smtpSecure ?? emailSettings.smtpSecure,
+        fromEmail: response.data.fromEmail ?? emailSettings.fromEmail,
+        toEmail: response.data.toEmail ?? emailSettings.toEmail
+        // smtpPassword deliberately not populated from the server response
+      })
+      Object.assign(auditSettings, {
+        logUserActivity: response.data.logUserActivity ?? auditSettings.logUserActivity,
+        retentionPeriod: response.data.retentionPeriod ?? auditSettings.retentionPeriod
+      })
+    }
+  } catch (err) {
+    console.warn('Tak dapat tarik system settings dari server, guna data local/default. Detail:', err)
+  } finally {
+    profileLoading.value = false
+  }
+}
 
 
 const auditSettings = reactive({
@@ -488,14 +628,6 @@ const auditHeaders = [
 
 const auditLogs = ref([])
 const auditLogsLoading = ref(false)
-
-
-const faqList = [
-  { question: 'How to create a new test case?', answer: 'Go to Test Cases page and click "New Test Case" button.' },
-  { question: 'How to assign a test case to someone?', answer: 'Edit the test case and select the user in "Assigned To" field.' },
-  { question: 'How to change system theme?', answer: 'Go to Settings → Dark Mode and toggle the switch.' },
-  { question: 'How to export test cases?', answer: 'Go to Test Cases page and click "Excel" or "PDF" button.' }
-]
 
 
 const snackbar = ref({
@@ -537,41 +669,47 @@ const viewAuditLogs = async () => {
 }
 
 
-const showHelpSupport = () => {
-  helpDialog.value = true
-}
-
-
-const showLogoutDialog = () => {
-  logoutDialog.value = true
-}
-
-
-const confirmLogout = () => {
-  logoutDialog.value = false
-  localStorage.removeItem('userSettings')
-  localStorage.removeItem('userToken')
-  showNotification(
-    '👋 Logged Out', 
-    'You have been logged out successfully', 
-    'warning', 
-    'logout'
-  )
-  
-}
-
 
 const saveAllSettings = async () => {
   saving.value = true
 
   const allSettings = {
     general: generalSettings,
+    email: emailSettings,
     darkMode: isDarkMode.value,
     profile: profileSettings,
     audit: auditSettings
   }
 
   localStorage.setItem('userSettings', JSON.stringify(allSettings))
+
+  let settingsSavedToDb = true
+  try {
+    const payload = {
+      systemName: generalSettings.systemName,
+      language: generalSettings.language,
+      timezone: generalSettings.timezone,
+      emailEnabled: emailSettings.emailEnabled,
+      smtpHost: emailSettings.smtpHost,
+      smtpPort: emailSettings.smtpPort,
+      smtpUser: emailSettings.smtpUser,
+      smtpSecure: emailSettings.smtpSecure,
+      fromEmail: emailSettings.fromEmail,
+      toEmail: emailSettings.toEmail,
+      logUserActivity: auditSettings.logUserActivity,
+      retentionPeriod: auditSettings.retentionPeriod
+    }
+    // Only send smtpPassword if the user actually typed a new one,
+    // so an empty field doesn't wipe out the saved password.
+    if (emailSettings.smtpPassword) {
+      payload.smtpPassword = emailSettings.smtpPassword
+    }
+
+    await axios.put(`${API_BASE_URL}/SystemSettings`, payload)
+  } catch (err) {
+    settingsSavedToDb = false
+    console.error('Gagal simpan system settings ke database, kekal tersimpan di local sahaja:', err)
+  }
 
   try {
     await axios.post(`${API_BASE_URL}/AuditLog`, {
@@ -583,14 +721,26 @@ const saveAllSettings = async () => {
     console.error('Gagal simpan audit log ke database:', err)
   }
 
+  emailSettings.smtpPassword = ''
+  profileSettings.password = ''
+
   setTimeout(() => {
     saving.value = false
-    showNotification(
-      '✅ Settings Saved',
-      'All system settings updated successfully',
-      'success',
-      'check-circle'
-    )
+    if (settingsSavedToDb) {
+      showNotification(
+        '✅ Settings Saved',
+        'All system settings updated and synced to the database.',
+        'success',
+        'check-circle'
+      )
+    } else {
+      showNotification(
+        '⚠️ Saved Locally Only',
+        'Settings saved on this device, but syncing to the database failed. Please check your connection.',
+        'warning',
+        'alert-circle'
+      )
+    }
   }, 600)
 }
 
@@ -633,10 +783,17 @@ const getAuditActionColor = (action) => {
   return colors[action] || 'grey'
 }
 
+onMounted(() => {
+  loadSystemSettingsFromServer()
+})
 
 </script>
 
 <style scoped>
+.disabled-section {
+  opacity: 0.6;
+}
+
 .letter-spacing-1 {
   letter-spacing: 1px;
 }

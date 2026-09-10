@@ -1,7 +1,7 @@
 {
   "name": "uat-mockup-project",
-  "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "UAT Mockup Project - React App",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,18 +9,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mdi/font": "^7.4.47",
-    "axios": "^1.19.0",
-    "jspdf": "^2.5.2",
-    "jspdf-autotable": "^3.8.4",
-    "pinia": "^4.0.2",
-    "vue": "^3.5.40",
-    "vue-router": "^4.6.4",
-    "vuetify": "^3.6.4",
-    "xlsx": "^0.18.5"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.8",
-    "vite": "^8.2.0"
-  }
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2"
+  },
+  "keywords": ["uat", "mockup", "react"],
+  "author": "P000419",
+  "license": "ISC"
 }

@@ -66,14 +66,16 @@
               v-bind="props"
               style="cursor: pointer;"
             >
-              {{ userInitials }}
+              <v-img v-if="userProfile.avatar" :src="userProfile.avatar" alt="avatar" cover></v-img>
+              <span v-else>{{ userInitials }}</span>
             </v-avatar>
           </template>
           <v-card width="300" class="rounded-xl pa-4" variant="outlined">
             <!-- User Info -->
             <div class="d-flex align-center mb-3 pb-3" style="border-bottom: 1px solid rgba(0,0,0,0.08);">
               <v-avatar color="primary" size="50" class="mr-3 font-weight-bold text-white">
-                {{ userInitials }}
+                <v-img v-if="userProfile.avatar" :src="userProfile.avatar" alt="avatar" cover></v-img>
+                <span v-else>{{ userInitials }}</span>
               </v-avatar>
               <div>
                 <div class="text-subtitle-1 font-weight-bold">{{ userProfile.name }}</div>
@@ -337,91 +339,74 @@
         </v-card>
       </v-col>
     </v-row>
-    <v-dialog v-model="helpDialog" max-width="550px">
+    <v-dialog v-model="editProfileDialog" max-width="480px" persistent>
       <v-card class="rounded-xl">
         <v-card-title class="text-white pa-4 d-flex align-center justify-space-between" style="background-color: #1e293b;">
           <span class="text-h6 font-weight-bold">
-            <v-icon color="white" class="mr-2">mdi-help-circle</v-icon>
-            Help & Support
+            <v-icon color="white" class="mr-2">mdi-account-edit</v-icon>
+            Edit Profile
           </span>
-          <v-btn icon variant="text" size="small" @click="helpDialog = false">
+          <v-btn icon variant="text" size="small" @click="editProfileDialog = false">
             <v-icon color="white">mdi-close</v-icon>
           </v-btn>
         </v-card-title>
+
         <v-card-text class="pa-6">
-          <div class="text-subtitle-1 font-weight-bold mb-3">Quick Actions</div>
-          <v-row>
-            <v-col cols="6" v-for="item in helpQuickActions" :key="item.action">
-              <v-card
-                class="rounded-xl pa-3 cursor-pointer"
-                variant="outlined"
-                @click="handleHelpItem(item.action)"
-                style="text-align: center; cursor: pointer;"
-                hover
-              >
-                <v-icon :color="item.color" size="32" class="mb-1">{{ item.icon }}</v-icon>
-                <div class="text-caption font-weight-bold">{{ item.title }}</div>
-                <div class="text-caption text-grey" style="font-size: 0.65rem;">{{ item.subtitle }}</div>
-              </v-card>
-            </v-col>
-          </v-row>
-
-          <v-divider class="my-4"></v-divider>
-          <div class="text-subtitle-1 font-weight-bold mb-3">Contact Us</div>
-          
-          <div class="d-flex align-center mb-2">
-            <v-icon color="primary" size="20" class="mr-2">mdi-email</v-icon>
-            <div>
-              <div class="text-body-2 font-weight-bold">Email Support</div>
-              <a href="mailto:support@uat-system.com" style="color: #4338ca; text-decoration: none; font-size: 0.9rem;">
-                support@uat-system.com
-              </a>
-            </div>
+          <div class="d-flex flex-column align-center mb-6">
+            <v-avatar size="90" color="primary" class="font-weight-bold text-white mb-3">
+              <v-img v-if="profileForm.avatar" :src="profileForm.avatar" alt="avatar" cover></v-img>
+              <span v-else class="text-h5">{{ userInitials }}</span>
+            </v-avatar>
+            <v-btn size="small" variant="outlined" prepend-icon="mdi-camera" class="text-capitalize" @click="triggerAvatarUpload">
+              Change Photo
+            </v-btn>
+            <input
+              ref="avatarInput"
+              type="file"
+              accept="image/*"
+              class="d-none"
+              @change="onAvatarChange"
+            />
           </div>
 
-          <div class="d-flex align-center mb-2">
-            <v-icon color="success" size="20" class="mr-2">mdi-phone</v-icon>
-            <div>
-              <div class="text-body-2 font-weight-bold">Phone Support</div>
-              <a href="tel:+60123456789" style="color: #16a34a; text-decoration: none; font-size: 0.9rem;">
-                +60 12-345 6789
-              </a>
-            </div>
-          </div>
+          <v-text-field
+            label="Full Name"
+            v-model="profileForm.name"
+            variant="outlined"
+            density="compact"
+            class="mb-3"
+          ></v-text-field>
 
-          <div class="d-flex align-center mb-2">
-            <v-icon color="warning" size="20" class="mr-2">mdi-clock-outline</v-icon>
-            <div>
-              <div class="text-body-2 font-weight-bold">Working Hours</div>
-              <div class="text-caption text-grey">Monday - Friday, 8:00 AM - 5:30 PM</div>
-            </div>
-          </div>
+          <v-text-field
+            label="Email"
+            v-model="profileForm.email"
+            variant="outlined"
+            density="compact"
+            disabled
+            class="mb-3"
+          ></v-text-field>
 
-          <v-divider class="my-4"></v-divider>
+          <v-select
+            label="Jawatan / Role"
+            :items="roleOptions"
+            v-model="profileForm.role"
+            variant="outlined"
+            density="compact"
+            class="mb-3"
+          ></v-select>
 
-          <!-- FAQ -->
-          <div class="text-subtitle-1 font-weight-bold mb-3">📋 FAQ</div>
-          
-          <v-expansion-panels variant="accordion">
-            <v-expansion-panel
-              v-for="(faq, index) in faqList"
-              :key="index"
-              class="mb-2 rounded-lg"
-              style="border: 1px solid #e2e8f0;"
-            >
-              <v-expansion-panel-title class="text-body-2 font-weight-medium">
-                <v-icon color="primary" size="small" class="mr-2">mdi-help-circle-outline</v-icon>
-                {{ faq.question }}
-              </v-expansion-panel-title>
-              <v-expansion-panel-text class="text-caption text-grey">
-                {{ faq.answer }}
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
+          <v-text-field
+            label="Department"
+            v-model="profileForm.department"
+            variant="outlined"
+            density="compact"
+          ></v-text-field>
         </v-card-text>
+
         <v-card-actions class="pa-4 border-t">
           <v-spacer></v-spacer>
-          <v-btn color="primary" variant="text" @click="helpDialog = false">Close</v-btn>
+          <v-btn variant="text" class="text-capitalize" @click="editProfileDialog = false">Cancel</v-btn>
+          <v-btn color="indigo-accent-4" class="text-white text-capitalize px-6 rounded-lg" @click="saveProfile">Save</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -503,7 +488,8 @@ const userProfile = ref({
   name: 'Intan Syafiqah',
   email: 'intan@kotrapharma.com',
   role: 'UAT Tester / Admin',
-  department: 'IT'
+  department: 'IT',
+  avatar: ''
 })
 const userInitials = computed(() => {
   const name = userProfile.value.name || 'User'
@@ -519,57 +505,25 @@ const profileMenuItems = [
   { title: 'My Profile', value: 'profile', icon: 'mdi-account' },
   { title: 'Settings', value: 'settings', icon: 'mdi-cog' },
   { title: 'My Test Cases', value: 'mycases', icon: 'mdi-clipboard-text' },
-  { title: 'Help & Support', value: 'help', icon: 'mdi-help-circle' },
 ]
-const helpQuickActions = [
-  { 
-    title: 'User Guide', 
-    subtitle: 'Learn the basics',
-    icon: 'mdi-book-open-variant', 
-    color: 'primary',
-    action: 'guide' 
-  },
-  { 
-    title: 'Report Bug', 
-    subtitle: 'Report an issue',
-    icon: 'mdi-bug', 
-    color: 'error',
-    action: 'bug' 
-  },
-  { 
-    title: 'Feature Request', 
-    subtitle: 'Suggest new feature',
-    icon: 'mdi-lightbulb', 
-    color: 'warning',
-    action: 'feature' 
-  },
-  { 
-    title: 'Email Support', 
-    subtitle: 'Send us an email',
-    icon: 'mdi-email', 
-    color: 'success',
-    action: 'email' 
-  },
+
+const roleOptions = [
+  'UAT Manager / QA Lead',
+  'Business Tester',
+  'Compliance Officer / Auditor',
+  'UAT Tester / Admin'
 ]
-const faqList = [
-  { 
-    question: 'How to create a new test case?', 
-    answer: 'Go to Test Cases page and click "New Test Case" button.' 
-  },
-  { 
-    question: 'How to assign a test case to someone?', 
-    answer: 'Edit the test case and select the user in "Assigned To" field.' 
-  },
-  { 
-    question: 'How to change system theme?', 
-    answer: 'Go to Settings → Dark Mode and toggle the switch.' 
-  },
-  { 
-    question: 'How to export test cases?', 
-    answer: 'Go to Test Cases page and click "Excel" or "PDF" button.' 
-  }
-]
-const helpDialog = ref(false)
+
+const editProfileDialog = ref(false)
+const avatarInput = ref(null)
+const profileForm = ref({
+  name: '',
+  email: '',
+  role: '',
+  department: '',
+  avatar: ''
+})
+
 const logoutDialog = ref(false)
 const snackbar = ref({
   show: false,
@@ -582,8 +536,7 @@ const snackbar = ref({
 const handleProfileAction = (action) => {
   switch (action) {
     case 'profile':
-      router.push('/settings')
-      showNotification('👤 My Profile', 'Redirecting to profile...', 'info', 'account')
+      openEditProfile()
       break
     case 'settings':
       router.push('/settings')
@@ -593,37 +546,61 @@ const handleProfileAction = (action) => {
       router.push('/test-cases?assigned=me')
       showNotification('📋 My Test Cases', 'Showing your assigned test cases...', 'info', 'clipboard-text')
       break
-    case 'help':
-      helpDialog.value = true
-      showNotification('❓ Help & Support', 'Opening help center...', 'info', 'help-circle')
-      break
     default:
       break
   }
 }
 
-const handleHelpItem = (action) => {
-  helpDialog.value = false
-  
-  switch (action) {
-    case 'guide':
-      router.push('/user-guide')
-      showNotification('📖 User Guide', 'Opening user guide...', 'info', 'book-open-variant')
-      break
-    case 'bug':
-      showNotification('🐛 Report Bug', 'Opening bug report form...', 'warning', 'bug')
-      break
-    case 'feature':
-      showNotification('💡 Feature Request', 'Opening feature request form...', 'info', 'lightbulb')
-      break
-    case 'email':
-      window.location.href = 'mailto:support@uat-system.com?subject=Help%20Support%20Request'
-      showNotification('📧 Email Support', 'Opening email client...', 'success', 'email')
-      break
-    default:
-      break
-  }
+const openEditProfile = () => {
+  profileForm.value = { ...userProfile.value }
+  editProfileDialog.value = true
 }
+
+const triggerAvatarUpload = () => {
+  avatarInput.value?.click()
+}
+
+const onAvatarChange = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    showNotification('⚠️ Invalid File', 'Please choose an image file.', 'error', 'alert-circle')
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = () => {
+    profileForm.value.avatar = reader.result
+  }
+  reader.readAsDataURL(file)
+}
+
+const saveProfile = () => {
+  userProfile.value = { ...userProfile.value, ...profileForm.value }
+
+  const saved = localStorage.getItem('userSettings')
+  let settings = {}
+  try {
+    settings = saved ? JSON.parse(saved) : {}
+  } catch (e) {
+    settings = {}
+  }
+
+  settings.profile = {
+    ...(settings.profile || {}),
+    fullName: userProfile.value.name,
+    email: userProfile.value.email,
+    role: userProfile.value.role,
+    department: userProfile.value.department,
+    avatar: userProfile.value.avatar
+  }
+  localStorage.setItem('userSettings', JSON.stringify(settings))
+
+  editProfileDialog.value = false
+  showNotification('✅ Profile Updated', 'Your profile has been saved.', 'success', 'account-check')
+}
+
 const handleLogout = () => {
   logoutDialog.value = true
 }
@@ -638,7 +615,8 @@ const confirmLogout = () => {
     name: '',
     email: '',
     role: '',
-    department: ''
+    department: '',
+    avatar: ''
   }
   
   showNotification(
@@ -669,6 +647,7 @@ const loadUserProfile = () => {
         userProfile.value.email = data.profile.email || userProfile.value.email
         userProfile.value.role = data.profile.role || userProfile.value.role
         userProfile.value.department = data.profile.department || userProfile.value.department
+        userProfile.value.avatar = data.profile.avatar || userProfile.value.avatar
       }
     } catch (e) {
       console.error('Error loading profile:', e)
