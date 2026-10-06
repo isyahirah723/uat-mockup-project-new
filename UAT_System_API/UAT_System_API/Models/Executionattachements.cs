@@ -8,14 +8,9 @@ namespace UAT_System_API.Models
     {
         [Key]
         public int id { get; set; }
-
-        [ForeignKey("ExecutionStep")]
         public int execution_step_id { get; set; }
-
-        public string? file_name { get; set; }
-        public string? file_path { get; set; }
-        public DateTime uploaded_at { get; set; } = DateTime.Now;
-
-        public virtual ExecutionSteps? ExecutionStep { get; set; }
+        public string file_name { get; set; } = string.Empty;
+        public string file_path { get; set; } = string.Empty;
+        public DateTime uploaded_at { get; set; }
     }
 }

@@ -10,54 +10,53 @@ namespace UAT_System_API.Controllers
     public class ExecutionAttachmentsController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly IWebHostEnvironment _env;
 
-        public ExecutionAttachmentsController(AppDbContext context, IWebHostEnvironment env)
+        public ExecutionAttachmentsController(AppDbContext context)
         {
             _context = context;
-            _env = env;
         }
 
-        
-        [HttpGet("by-step/{executionStepId}")]
-        public async Task<ActionResult<IEnumerable<ExecutionAttachments>>> GetByStep(int executionStepId)
+        // GET api/ExecutionAttachments
+        // Used by FeedbackView.vue, TestRunReportPage.vue and the PDF report
+        // to show the screenshots / files a tester uploaded with a defect.
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<ExecutionAttachments>>> GetAttachments()
         {
-            return await _context.ExecutionAttachments
-                .Where(a => a.execution_step_id == executionStepId)
-                .OrderByDescending(a => a.uploaded_at)
-                .ToListAsync();
+            return Ok(await _context.ExecutionAttachments
+                .OrderBy(a => a.id)
+                .ToListAsync());
         }
 
-        
-        [HttpPost("Upload/{executionStepId}")]
-        [RequestSizeLimit(20_000_000)]
-        public async Task<ActionResult<ExecutionAttachments>> Upload(int executionStepId, IFormFile file)
+        // POST api/ExecutionAttachments
+        // POST api/ExecutionAttachments/upload   <- the URL TestExecutionPage.vue actually calls
+        [HttpPost]
+        [HttpPost("upload")]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ExecutionAttachments>> PostAttachment([FromForm] ExecutionAttachmentDto dto)
         {
-            if (file == null || file.Length == 0)
-                return BadRequest("File is required.");
+            if (dto.file == null || dto.file.Length == 0)
+                return BadRequest("No file uploaded.");
 
-            var stepExists = await _context.ExecutionSteps.AnyAsync(s => s.id == executionStepId);
+            var stepExists = await _context.ExecutionSteps.AnyAsync(s => s.id == dto.execution_step_id);
             if (!stepExists)
-                return BadRequest($"Execution step {executionStepId} does not exist.");
+                return BadRequest($"Execution step {dto.execution_step_id} does not exist.");
 
-            var uploadsRoot = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "execution-steps", executionStepId.ToString());
-            Directory.CreateDirectory(uploadsRoot);
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "execution");
+            Directory.CreateDirectory(uploadsFolder);
 
-            var safeFileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
-            var fullPath = Path.Combine(uploadsRoot, safeFileName);
+            var safeFileName = $"{Guid.NewGuid()}_{Path.GetFileName(dto.file.FileName)}";
+            var filePath = Path.Combine(uploadsFolder, safeFileName);
 
-            using (var stream = new FileStream(fullPath, FileMode.Create))
+            using (var stream = new FileStream(filePath, FileMode.Create))
             {
-                await file.CopyToAsync(stream);
+                await dto.file.CopyToAsync(stream);
             }
-
-            var relativePath = $"/uploads/execution-steps/{executionStepId}/{safeFileName}";
 
             var attachment = new ExecutionAttachments
             {
-                execution_step_id = executionStepId,
-                file_name = file.FileName,
-                file_path = relativePath,
+                execution_step_id = dto.execution_step_id,
+                file_name = dto.file.FileName,
+                file_path = $"/uploads/execution/{safeFileName}",
                 uploaded_at = DateTime.Now
             };
 
@@ -65,27 +64,6 @@ namespace UAT_System_API.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(attachment);
-        }
-
-       
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var attachment = await _context.ExecutionAttachments.FindAsync(id);
-            if (attachment == null) return NotFound();
-
-            if (!string.IsNullOrEmpty(attachment.file_path))
-            {
-                var fullPath = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), attachment.file_path.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
-                if (System.IO.File.Exists(fullPath))
-                {
-                    System.IO.File.Delete(fullPath);
-                }
-            }
-
-            _context.ExecutionAttachments.Remove(attachment);
-            await _context.SaveChangesAsync();
-            return NoContent();
         }
     }
 }

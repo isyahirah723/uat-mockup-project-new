@@ -21,6 +21,26 @@ namespace UAT_System_API.Controllers
         }
 
         
+        // Next free code for today: CY + YYMMDD + 3-digit running number
+        private async Task<string> GenerateCycleCode()
+        {
+            var prefix = "CY" + DateTime.Now.ToString("yyMMdd");
+
+            var codes = await _context.TestCycles
+                .Where(c => c.cycle_code != null && c.cycle_code.StartsWith(prefix))
+                .Select(c => c.cycle_code!)
+                .ToListAsync();
+
+            var max = 0;
+            foreach (var code in codes)
+            {
+                if (int.TryParse(code.Substring(prefix.Length), out var n) && n > max)
+                    max = n;
+            }
+
+            return prefix + (max + 1).ToString("000");
+        }
+
         [HttpGet]
         public async Task<ActionResult> GetTestCycles()
         {
@@ -66,25 +86,40 @@ namespace UAT_System_API.Controllers
         [HttpPost]
         public async Task<ActionResult> PostTestCycle(TestCycles cycle)
         {
-            
-            if (string.IsNullOrWhiteSpace(cycle.cycle_code))
+            // Cycle ID format: CY + YYMMDD + 3-digit running number (e.g. CY260928001).
+            // Use the code sent by the frontend, but generate a fresh one if it is blank or already taken.
+            if (string.IsNullOrWhiteSpace(cycle.cycle_code) ||
+                await _context.TestCycles.AnyAsync(c => c.cycle_code == cycle.cycle_code))
             {
-                var count = await _context.TestCycles.CountAsync();
-                cycle.cycle_code = "CY-" + (count + 1).ToString("000");
-                while (await _context.TestCycles.AnyAsync(c => c.cycle_code == cycle.cycle_code))
-                {
-                    count++;
-                    cycle.cycle_code = "CY-" + (count + 1).ToString("000");
-                }
+                cycle.cycle_code = await GenerateCycleCode();
             }
 
-            
             if (cycle.created_date == null)
             {
                 cycle.created_date = DateTime.Now.Date;
             }
 
-            cycle.created_by = 14;
+            // created_by must be a real user, otherwise the fk_cycle_creator constraint fails
+            // (this used to be hardcoded to 14, which no longer exists in Users).
+            if (!cycle.created_by.HasValue || cycle.created_by.Value <= 0)
+            {
+                var defaultUser = await _context.Users.OrderBy(u => u.id).FirstOrDefaultAsync();
+                if (defaultUser == null)
+                    return BadRequest(new { message = "Tiada sebarang rekod User di dalam pangkalan data. Sila masukkan sekurang-kurangnya satu user." });
+
+                cycle.created_by = defaultUser.id;
+            }
+            else if (!await _context.Users.AnyAsync(u => u.id == cycle.created_by.Value))
+            {
+                return BadRequest(new { message = $"User dengan ID {cycle.created_by} tidak wujud dalam pangkalan data." });
+            }
+
+            if (cycle.assigned_to.HasValue &&
+                !await _context.Users.AnyAsync(u => u.id == cycle.assigned_to.Value))
+            {
+                return BadRequest(new { message = $"User dengan ID {cycle.assigned_to} tidak wujud dalam pangkalan data." });
+            }
+
             cycle.created_at = DateTime.Now;
             cycle.updated_at = DateTime.Now;
 

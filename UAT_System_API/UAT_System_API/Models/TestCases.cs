@@ -16,6 +16,9 @@ namespace UAT_System_API.Models
         public int? cycle_id { get; set; }
         public string? priority { get; set; }
         public string? status { get; set; }
+        public string? approval_status { get; set; } = "Pending Review";
+        public int? approved_by { get; set; }
+        public DateTime? approved_at { get; set; }
         public string? assigned_to { get; set; }
         public string? test_number { get; set; }
         public DateTime? test_date { get; set; }

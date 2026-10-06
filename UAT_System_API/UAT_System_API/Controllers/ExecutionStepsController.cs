@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using UAT_System_API.Data;
 using UAT_System_API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace UAT_System_API.Controllers
 {
@@ -16,13 +16,71 @@ namespace UAT_System_API.Controllers
             _context = context;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<ExecutionSteps>>> GetExecutionSteps()
+        // Next free ticket number: DEF-001, DEF-002 ...
+        private async Task<string> GenerateTicketId()
         {
-            return await _context.ExecutionSteps.ToListAsync();
+            var existing = await _context.ExecutionSteps
+                .Where(e => e.ticket_id != null && e.ticket_id.StartsWith("DEF-"))
+                .Select(e => e.ticket_id!)
+                .ToListAsync();
+
+            var max = 0;
+            foreach (var t in existing)
+            {
+                if (int.TryParse(t.Substring(4), out var n) && n > max) max = n;
+            }
+            return "DEF-" + (max + 1).ToString("000");
         }
 
-        [HttpGet("{id}")]
+        // GET api/ExecutionSteps/defects
+        // Used by FeedbackView.vue (Defects tab).
+        // Literal route "defects" takes priority over "{id}", so no clash.
+        [HttpGet("defects")]
+        public async Task<ActionResult> GetDefects()
+        {
+            var defects = await (
+                from es in _context.ExecutionSteps
+                join tc in _context.TestCases on es.test_case_id equals tc.id
+                join run in _context.TestRuns on es.run_id_fk equals (int?)run.id into runs
+                from run in runs.DefaultIfEmpty()
+                join u in _context.Users on (int?)run.executed_by equals (int?)u.id into users
+                from u in users.DefaultIfEmpty()
+                where es.has_defect
+                orderby es.dt_created descending
+                select new
+                {
+                    es.id,
+                    test_case_code = tc.test_case_code,
+                    title = tc.title,
+                    es.step_name,
+                    es.severity,
+                    es.ticket_id,
+                    reported_by = u != null ? u.full_name : null,
+                    es.dt_created,
+                    es.actual_result,
+                    es.comments
+                }
+            ).ToListAsync();
+
+            return Ok(defects);
+        }
+
+        // GET api/ExecutionSteps/by-run/5
+        // Used by TestRunsPage.vue and TestCasepage.vue.
+        // Always returns 200 with a list (empty if the run has no steps yet).
+        [HttpGet("by-run/{runId:int}")]
+        public async Task<ActionResult<IEnumerable<ExecutionSteps>>> GetByRun(int runId)
+        {
+            var steps = await _context.ExecutionSteps
+                .Where(es => es.run_id_fk == runId)
+                .OrderBy(es => es.sequence_order)
+                .ToListAsync();
+
+            return Ok(steps);
+        }
+
+        // GET api/ExecutionSteps/5
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<ExecutionSteps>> GetExecutionStep(int id)
         {
             var step = await _context.ExecutionSteps.FindAsync(id);
@@ -30,98 +88,49 @@ namespace UAT_System_API.Controllers
             return step;
         }
 
-        // GET: api/ExecutionSteps/by-test-case/5
-        [HttpGet("by-test-case/{testCaseId}")]
-        public async Task<ActionResult<IEnumerable<ExecutionSteps>>> GetByTestCase(int testCaseId)
-        {
-            return await _context.ExecutionSteps
-                .Where(s => s.test_case_id == testCaseId)
-                .OrderBy(s => s.sequence_order)
-                .ToListAsync();
-        }
-
+        // POST api/ExecutionSteps
+        // Called the first time a step in a run is saved.
         [HttpPost]
         public async Task<ActionResult<ExecutionSteps>> PostExecutionStep(ExecutionSteps step)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            step.dt_created = DateTime.Now;
+
+            if (string.IsNullOrWhiteSpace(step.ticket_id) &&
+                (step.execution_status == "Failed" || step.has_defect))
+                step.ticket_id = await GenerateTicketId();
 
             _context.ExecutionSteps.Add(step);
             await _context.SaveChangesAsync();
+
             return CreatedAtAction(nameof(GetExecutionStep), new { id = step.id }, step);
         }
 
-       
-        [HttpPost("SaveBatch/{testCaseId}")]
-        public async Task<IActionResult> SaveBatch(int testCaseId, [FromBody] List<ExecutionSteps> steps)
-        {
-            if (steps == null) return BadRequest("Steps list is required.");
-
-            var existingSteps = _context.ExecutionSteps.Where(s => s.test_case_id == testCaseId);
-            _context.ExecutionSteps.RemoveRange(existingSteps);
-
-            foreach (var step in steps)
-            {
-                step.test_case_id = testCaseId;
-                step.dt_created = DateTime.Now;
-                _context.ExecutionSteps.Add(step);
-            }
-
-            await _context.SaveChangesAsync();
-
-            var testCase = await _context.TestCases.FindAsync(testCaseId);
-            var lastStep = steps.LastOrDefault();
-            var defectCount = steps.Count(s => s.has_defect);
-
-            _context.AuditLogs.Add(new AuditLog
-            {
-                RunId = testCase?.test_case_code ?? testCaseId.ToString(),
-                Action = "UPDATE",
-                StatusOld = null,
-                StatusNew = lastStep?.execution_status,
-                Title = testCase?.title ?? "Execution Steps",
-                Details = $"Execution steps saved ({steps.Count} step(s), {defectCount} with defect)",
-                CrtUserId = lastStep?.crt_user_id ?? "System",
-                DtCreated = DateTime.Now
-            });
-            await _context.SaveChangesAsync();
-
-            
-            var savedSteps = await _context.ExecutionSteps
-                .Where(s => s.test_case_id == testCaseId)
-                .OrderBy(s => s.sequence_order)
-                .ToListAsync();
-
-            return Ok(new { message = "Execution steps saved successfully.", steps = savedSteps });
-        }
-
+        // PUT api/ExecutionSteps/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutExecutionStep(int id, ExecutionSteps step)
-        {
-            if (id != step.id) return BadRequest();
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            _context.Entry(step).State = EntityState.Modified;
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.ExecutionSteps.Any(e => e.id == id)) return NotFound();
-                else throw;
-            }
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteExecutionStep(int id)
+        public async Task<IActionResult> PutExecutionStep(int id, ExecutionSteps updated)
         {
             var step = await _context.ExecutionSteps.FindAsync(id);
             if (step == null) return NotFound();
 
-            _context.ExecutionSteps.Remove(step);
+            step.execution_status = updated.execution_status;
+            step.actual_result = updated.actual_result;
+            step.has_defect = updated.has_defect;
+            step.severity = updated.severity;
+
+            // a step keeps its ticket number once it has one; a Failed step gets the next DEF number
+            if (string.IsNullOrWhiteSpace(step.ticket_id))
+            {
+                if (!string.IsNullOrWhiteSpace(updated.ticket_id))
+                    step.ticket_id = updated.ticket_id.Trim();
+                else if (updated.execution_status == "Failed" || updated.has_defect)
+                    step.ticket_id = await GenerateTicketId();
+            }
+
+            step.comments = updated.comments;
+            step.required_role = updated.required_role;
+
             await _context.SaveChangesAsync();
-            return NoContent();
+            return Ok(step);
         }
     }
 }

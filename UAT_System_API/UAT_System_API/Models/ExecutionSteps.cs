@@ -10,6 +10,7 @@ namespace UAT_System_API.Models
         public int id { get; set; }
         public int test_case_id { get; set; }
         public string? run_id { get; set; }
+        public int? run_id_fk { get; set; }
         public string? step_name { get; set; }
         public string? required_role { get; set; }
         public string? execution_status { get; set; }

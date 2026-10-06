@@ -2,7 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import Dashboard from '../components/Dashboard.vue'
 import TestCasepage from '../views/TestCasepage.vue'
-import TestCycles from '../views/TestCycles.vue'
+import TestRunsPage from '../views/TestRunsPage.vue'
+import TestExecutionPage from '../views/TestExecutionPage.vue'
+import TestRunReportPage from '../views/TestRunReportPage.vue'
 import FeedbackView from '../views/FeedbackView.vue'
 import TemplateForm from '../views/TemplateForm.vue'
 import AuditLog from '../views/AuditLog.vue'
@@ -19,9 +21,12 @@ const router = createRouter({
       children: [
         { path: '', name: 'Dashboard', component: Dashboard },
         { path: 'test-cases', name: 'TestCases', component: TestCasepage },
-        { path: 'test-cycles', name: 'TestCycles', component: TestCycles },
+        { path: 'test-cases/:id/runs', name: 'TestCaseRuns', component: TestRunsPage },
+        { path: 'test-cases/:id/execute', name: 'TestExecution', component: TestExecutionPage },
+        { path: 'test-cases/:id/runs/:runId/report', name: 'TestRunReport', component: TestRunReportPage },
+        { path: 'test-cycles', redirect: { path: '/test-cases', query: { tab: 'cycles' } } },
         { 
-          path: 'feedback/:id',   
+          path: 'feedback/:id?',   
           name: 'Feedback', 
           component: FeedbackView 
         },

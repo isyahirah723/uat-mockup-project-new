@@ -7,6 +7,7 @@ namespace UAT_System_API.Models
     public class AuditLog
     {
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)] 
         public int Id { get; set; }
 
         [Column("run_id")]

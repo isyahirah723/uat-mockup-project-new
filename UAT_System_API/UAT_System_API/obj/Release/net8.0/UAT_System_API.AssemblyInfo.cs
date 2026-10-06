@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UAT_System_API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+894c3c63dcb3ecf16975bf19d8b5d8ed45473a2d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8bac9f06bbf15e701209433c32cad1c09e081e2a")]
 [assembly: System.Reflection.AssemblyProductAttribute("UAT_System_API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UAT_System_API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

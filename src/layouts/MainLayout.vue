@@ -20,10 +20,9 @@
 
       <v-list density="compact" nav class="mt-2 px-2">
         <div class="sidebar-eyebrow">WORKSPACE</div>
-        <v-list-item prepend-icon="mdi-view-dashboard" title="Dashboard" to="/" value="dashboard" class="sidebar-item rounded-lg mb-1"></v-list-item>
+        <v-list-item prepend-icon="mdi-view-dashboard" title="Dashboard" to="/" exact value="dashboard" class="sidebar-item rounded-lg mb-1"></v-list-item>
         <v-list-item prepend-icon="mdi-format-list-checks" title="Test Cases" to="/test-cases" value="testcases" class="sidebar-item rounded-lg mb-1"></v-list-item>
-        <v-list-item prepend-icon="mdi-sync" title="Test Cycles" to="/test-cycles" value="testcycles" class="sidebar-item rounded-lg mb-1"></v-list-item>
-        <v-list-item prepend-icon="mdi-comment-text-multiple-outline" title="Feedback" to="/test-cases" value="feedback" class="sidebar-item rounded-lg mb-1"></v-list-item>
+        <v-list-item prepend-icon="mdi-comment-text-multiple-outline" title="Feedback" to="/feedback" value="feedback" class="sidebar-item rounded-lg mb-1"></v-list-item>
 
         <div class="sidebar-eyebrow mt-4">SYSTEM</div>
         <v-list-item prepend-icon="mdi-history" title="Audit Log" to="/audit-log" value="auditlog" class="sidebar-item rounded-lg mb-1"></v-list-item>

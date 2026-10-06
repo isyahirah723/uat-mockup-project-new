@@ -521,7 +521,7 @@ const sendTestEmail = async () => {
     await axios.post(`${API_BASE_URL}/SystemSettings/test-email`)
     showNotification('📧 Test Email Sent', `A test email was sent to ${emailSettings.toEmail || 'the configured recipient'}.`, 'success', 'email-check')
   } catch (err) {
-    console.error('Gagal hantar test email:', err)
+    console.error('Failed to send test email:', err)
     showNotification('⚠️ Test Email Failed', 'Could not send test email. Please check your SMTP settings.', 'error', 'email-alert')
   } finally {
     testingEmail.value = false
@@ -598,7 +598,7 @@ const loadSystemSettingsFromServer = async () => {
         smtpSecure: response.data.smtpSecure ?? emailSettings.smtpSecure,
         fromEmail: response.data.fromEmail ?? emailSettings.fromEmail,
         toEmail: response.data.toEmail ?? emailSettings.toEmail
-        // smtpPassword deliberately not populated from the server response
+      
       })
       Object.assign(auditSettings, {
         logUserActivity: response.data.logUserActivity ?? auditSettings.logUserActivity,
@@ -658,8 +658,8 @@ const viewAuditLogs = async () => {
   } catch (err) {
     console.error('Gagal ambil audit logs dari database:', err)
     showNotification(
-      '⚠️ Gagal Muat Audit Log',
-      'Tak dapat sambung ke server. Sila cuba lagi.',
+      '⚠️ Failed to Load Audit Log',
+      'Cannot connect to the server. Please try again.',
       'error',
       'alert-circle'
     )
@@ -699,8 +699,7 @@ const saveAllSettings = async () => {
       logUserActivity: auditSettings.logUserActivity,
       retentionPeriod: auditSettings.retentionPeriod
     }
-    // Only send smtpPassword if the user actually typed a new one,
-    // so an empty field doesn't wipe out the saved password.
+   
     if (emailSettings.smtpPassword) {
       payload.smtpPassword = emailSettings.smtpPassword
     }
@@ -755,7 +754,7 @@ const showNotification = (title, message, color = 'success', icon = 'check-circl
   }
 }
 
-// Format Date
+
 const formatDate = (date) => {
   if (!date) return '-'
   const d = new Date(date)
