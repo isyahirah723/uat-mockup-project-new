@@ -42,8 +42,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// CORS must come BEFORE static files, otherwise files under /uploads get no
-// Access-Control-Allow-Origin header and the browser blocks fetching them (PDF image embed).
+
 app.UseCors("AllowFrontend");
 app.UseStaticFiles();
 
