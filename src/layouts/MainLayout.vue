@@ -73,8 +73,8 @@ window.__toggleTheme = (isDark) => {
 const drawerStyle = computed(() => {
   return themeName.value === 'dark' 
     ? { 
-        backgroundImage: 'linear-gradient(160deg, #17081f 0%, #3a1052 30%, #7a1a8c 65%, #ab1fae 100%)',
-        borderRight: '1px solid rgba(255,255,255,0.08)'
+        backgroundImage: 'linear-gradient(160deg, #4a1470 0%, #6d1f9e 35%, #9b27b0 70%, #c13fc9 100%)',
+        borderRight: '1px solid rgba(255,255,255,0.18)'
       } 
     : { 
         backgroundImage: 'linear-gradient(160deg, #17081f 0%, #3a1052 30%, #7a1a8c 65%, #ab1fae 100%)',
@@ -92,7 +92,7 @@ const mainStyle = computed(() => {
 
 <style scoped>
 .sidebar-header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .sidebar-logo {
@@ -105,34 +105,54 @@ const mainStyle = computed(() => {
 }
 
 .sidebar-subtitle {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .sidebar-eyebrow {
   padding: 8px 12px 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.8px;
-  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .sidebar-item {
-  color: rgba(255, 255, 255, 0.75) !important;
+  color: #ffffff !important;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+/* Buang opacity default Vuetify & besarkan font */
+.sidebar-item :deep(.v-list-item-title) {
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  opacity: 1 !important;
+  color: #ffffff;
+}
+
+.sidebar-item :deep(.v-icon) {
+  color: #ffffff !important;
+  opacity: 0.9 !important;
+}
+
+.sidebar-item :deep(.v-list-item__overlay) {
+  display: none;
+}
+
 .sidebar-item:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.14);
 }
 
 .sidebar-item.v-list-item--active {
-  background: rgba(255, 255, 255, 0.16) !important;
-  color: #ffffff !important;
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.24) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.sidebar-item.v-list-item--active :deep(.v-list-item-title) {
+  font-weight: 700;
 }
 
 .sidebar-item.v-list-item--active :deep(.v-icon) {
-  color: #ffffff !important;
+  opacity: 1 !important;
 }
 </style>

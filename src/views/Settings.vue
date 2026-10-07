@@ -807,7 +807,7 @@ onMounted(() => {
 }
 
 .settings-nav-card {
-  border-color: #e2e8f0;
+  border-color: rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .settings-nav-item {
@@ -818,8 +818,8 @@ onMounted(() => {
   margin-bottom: 4px;
 }
 .v-list-item--active {
-  background-color: #e8f0fe !important;
-  color: #4338ca !important;
+  background-color: rgba(67, 56, 202, 0.14) !important;
+  color: var(--acc-indigo, #4338ca) !important;
   font-weight: 600;
 }
 
@@ -830,7 +830,7 @@ onMounted(() => {
 }
 
 .border-t {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 .float-right {
   float: right;

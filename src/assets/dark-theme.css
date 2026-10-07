@@ -1,0 +1,206 @@
+/* ==========================================================
+   dark-theme.css — global dark-mode polish for UAT Management System
+   Import ONCE, after Vuetify styles, e.g. in src/main.js:
+       import './assets/dark-theme.css'
+   Works with Vuetify's built-in .v-theme--dark class.
+   ========================================================== */
+
+/* Accent colours used by page-level CSS: deep shades for light mode,
+   brighter shades for dark mode so text stays readable. */
+:root {
+  --acc-teal: #0f766e;
+  --acc-teal-deep: #134e4a;
+  --acc-blue-deep: #1e40af;
+  --acc-indigo: #4f46e5;
+  --acc-purple: #760f6f;
+  --acc-red-deep: #b91c1c;
+}
+.v-theme--dark {
+  --acc-teal: #2dd4bf;
+  --acc-teal-deep: #99f6e4;
+  --acc-blue-deep: #93c5fd;
+  --acc-indigo: #a5b4fc;
+  --acc-purple: #f0abfc;
+  --acc-red-deep: #fca5a5;
+}
+
+/* ==========================================================
+   SHARED POLISH (light + dark)
+   ========================================================== */
+
+/* Tabs: Vuetify's sliding underline stretches across neighbouring tabs while it
+   animates, so it looks too long right after a click. Hide it and draw the
+   underline on the selected tab itself: always exactly as wide as the tab. */
+.v-tabs:not(.v-tabs--vertical) .v-tab__slider { display: none !important; }
+.v-tabs:not(.v-tabs--vertical) .v-tab {
+  border-radius: 0;
+  box-shadow: inset 0 -2px 0 0 transparent;
+  transition: box-shadow 0.15s ease, color 0.15s ease;
+}
+.v-tabs:not(.v-tabs--vertical) .v-tab--selected {
+  box-shadow: inset 0 -2px 0 0 currentColor;
+}
+
+/* Filled action buttons (Excel, PDF, New Test Case, New Test Cycle, Save):
+   keep label and icon pure white so they never pick up the teal accent. */
+.v-btn.btn-glow,
+.v-btn.btn-glow .v-btn__content,
+.v-btn.btn-glow .v-btn__prepend,
+.v-btn.btn-glow .v-icon {
+  color: #ffffff !important;
+}
+
+/* ==========================================================
+   DARK MODE ONLY
+   ========================================================== */
+
+/* Icons, tabs and progress that were given the dark teal (#0f766e) via the `color` prop */
+.v-theme--dark [style*="color: rgb(15, 118, 110)"]:not(.v-btn):not(.btn-glow),
+.v-theme--dark [style*="color:#0f766e"]:not(.v-btn):not(.btn-glow) {
+  color: var(--acc-teal) !important;
+}
+.v-theme--dark .v-tab--selected { color: var(--acc-teal) !important; }
+.v-theme--dark .v-tab:not(.v-tab--selected) { color: rgba(var(--v-theme-on-surface), 0.7) !important; }
+
+/* Tonal icon buttons and chips (edit / view / assign / delete, tester chips, cycle chips):
+   their dark-shade colours (teal-darken, purple-darken, red-darken ...) sink into dark
+   surfaces. Brighten them so icons and labels stay legible. */
+.v-theme--dark .v-btn--variant-tonal:not(.v-btn--disabled),
+.v-theme--dark .v-chip--variant-tonal {
+  filter: brightness(1.55) saturate(1.1);
+}
+
+/* Pale chips (light-blue pill used on test case rows) */
+.v-theme--dark .v-chip[style*="rgb(224, 242, 254)"] {
+  background-color: rgba(56, 189, 248, 0.18) !important;
+  color: #7dd3fc !important;
+}
+
+/* Cards: subtle border + soft depth instead of heavy white-style shadows */
+.v-theme--dark .v-card--variant-outlined {
+  border-color: rgba(255, 255, 255, 0.10);
+  background-color: rgb(var(--v-theme-surface));
+}
+.v-theme--dark .v-card.rounded-xl,
+.v-theme--dark .v-card.rounded-lg {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.v-theme--dark .stat-card:hover {
+  border-color: rgba(129, 140, 248, 0.7) !important;
+  box-shadow: 0 10px 24px -6px rgba(0, 0, 0, 0.6);
+}
+
+/* Tables: readable zebra/hover, softer dividers */
+.v-theme--dark .v-table > .v-table__wrapper > table > tbody > tr:not(:last-child) > td,
+.v-theme--dark .v-table > .v-table__wrapper > table > tbody > tr:not(:last-child) > th {
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+.v-theme--dark .v-table--hover > .v-table__wrapper > table > tbody > tr:hover > td {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Form fields */
+.v-theme--dark .v-field--variant-outlined .v-field__outline { --v-field-border-opacity: 0.28; }
+.v-theme--dark .v-field--focused.v-field--variant-outlined .v-field__outline { --v-field-border-opacity: 0.9; }
+.v-theme--dark .v-label { opacity: 0.8; }
+
+/* Muted helper text: Vuetify's text-grey is too dim on dark surfaces */
+.v-theme--dark .text-grey,
+.v-theme--dark .text-grey-darken-1,
+.v-theme--dark .text-grey-darken-2,
+.v-theme--dark .text-grey-darken-3 {
+  color: rgba(var(--v-theme-on-surface), 0.65) !important;
+}
+
+/* Scrollbars */
+.v-theme--dark ::-webkit-scrollbar { width: 10px; height: 10px; }
+.v-theme--dark ::-webkit-scrollbar-track { background: transparent; }
+.v-theme--dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.v-theme--dark ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); background-clip: content-box; }
+
+/* Dialogs & menus: slightly lifted from the page */
+.v-theme--dark .v-overlay__content > .v-card { border: 1px solid rgba(255, 255, 255, 0.08); }
+.v-theme--dark .v-list { background: rgb(var(--v-theme-surface)); }
+
+.v-theme--dark .text-indigo-darken-1,
+.v-theme--dark .text-indigo-darken-2,
+.v-theme--dark .text-indigo-darken-3,
+.v-theme--dark .text-indigo-darken-4 { color: #9fa8da !important; }
+.v-theme--dark .text-blue-darken-1,
+.v-theme--dark .text-blue-darken-2,
+.v-theme--dark .text-blue-darken-3,
+.v-theme--dark .text-blue-darken-4 { color: #90caf9 !important; }
+.v-theme--dark .text-light-blue-darken-1,
+.v-theme--dark .text-light-blue-darken-2,
+.v-theme--dark .text-light-blue-darken-3,
+.v-theme--dark .text-light-blue-darken-4 { color: #81d4fa !important; }
+.v-theme--dark .text-cyan-darken-1,
+.v-theme--dark .text-cyan-darken-2,
+.v-theme--dark .text-cyan-darken-3,
+.v-theme--dark .text-cyan-darken-4 { color: #80deea !important; }
+.v-theme--dark .text-teal-darken-1,
+.v-theme--dark .text-teal-darken-2,
+.v-theme--dark .text-teal-darken-3,
+.v-theme--dark .text-teal-darken-4 { color: #80cbc4 !important; }
+.v-theme--dark .text-green-darken-1,
+.v-theme--dark .text-green-darken-2,
+.v-theme--dark .text-green-darken-3,
+.v-theme--dark .text-green-darken-4 { color: #a5d6a7 !important; }
+.v-theme--dark .text-light-green-darken-1,
+.v-theme--dark .text-light-green-darken-2,
+.v-theme--dark .text-light-green-darken-3,
+.v-theme--dark .text-light-green-darken-4 { color: #c5e1a5 !important; }
+.v-theme--dark .text-lime-darken-1,
+.v-theme--dark .text-lime-darken-2,
+.v-theme--dark .text-lime-darken-3,
+.v-theme--dark .text-lime-darken-4 { color: #e6ee9c !important; }
+.v-theme--dark .text-yellow-darken-1,
+.v-theme--dark .text-yellow-darken-2,
+.v-theme--dark .text-yellow-darken-3,
+.v-theme--dark .text-yellow-darken-4 { color: #fff59d !important; }
+.v-theme--dark .text-amber-darken-1,
+.v-theme--dark .text-amber-darken-2,
+.v-theme--dark .text-amber-darken-3,
+.v-theme--dark .text-amber-darken-4 { color: #ffe082 !important; }
+.v-theme--dark .text-orange-darken-1,
+.v-theme--dark .text-orange-darken-2,
+.v-theme--dark .text-orange-darken-3,
+.v-theme--dark .text-orange-darken-4 { color: #ffcc80 !important; }
+.v-theme--dark .text-deep-orange-darken-1,
+.v-theme--dark .text-deep-orange-darken-2,
+.v-theme--dark .text-deep-orange-darken-3,
+.v-theme--dark .text-deep-orange-darken-4 { color: #ffab91 !important; }
+.v-theme--dark .text-red-darken-1,
+.v-theme--dark .text-red-darken-2,
+.v-theme--dark .text-red-darken-3,
+.v-theme--dark .text-red-darken-4 { color: #ef9a9a !important; }
+.v-theme--dark .text-pink-darken-1,
+.v-theme--dark .text-pink-darken-2,
+.v-theme--dark .text-pink-darken-3,
+.v-theme--dark .text-pink-darken-4 { color: #f48fb1 !important; }
+.v-theme--dark .text-purple-darken-1,
+.v-theme--dark .text-purple-darken-2,
+.v-theme--dark .text-purple-darken-3,
+.v-theme--dark .text-purple-darken-4 { color: #ce93d8 !important; }
+.v-theme--dark .text-deep-purple-darken-1,
+.v-theme--dark .text-deep-purple-darken-2,
+.v-theme--dark .text-deep-purple-darken-3,
+.v-theme--dark .text-deep-purple-darken-4 { color: #b39ddb !important; }
+.v-theme--dark .text-brown-darken-1,
+.v-theme--dark .text-brown-darken-2,
+.v-theme--dark .text-brown-darken-3,
+.v-theme--dark .text-brown-darken-4 { color: #bcaaa4 !important; }
+.v-theme--dark .text-blue-grey-darken-1,
+.v-theme--dark .text-blue-grey-darken-2,
+.v-theme--dark .text-blue-grey-darken-3,
+.v-theme--dark .text-blue-grey-darken-4 { color: #b0bec5 !important; }
+
+/* Same hues as plain colours that are still too deep (text-indigo, text-teal ...) */
+.v-theme--dark .text-indigo { color: #9fa8da !important; }
+.v-theme--dark .text-teal { color: #4db6ac !important; }
+.v-theme--dark .text-purple { color: #ce93d8 !important; }

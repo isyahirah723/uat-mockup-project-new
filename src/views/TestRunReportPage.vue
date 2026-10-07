@@ -84,7 +84,7 @@
           <div class="summary-row">
             <div class="donut-wrap">
               <svg viewBox="0 0 100 100" width="120" height="120">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="14" />
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-opacity="0.3" stroke-width="14" />
                 <circle
                   v-for="(sg, i) in donutSegments"
                   :key="i"
@@ -208,7 +208,24 @@ const steps = ref([])
 const feedbackComment = ref('')
 
 const goBack = () => router.push({ name: 'TestCaseRuns', params: { id: testCaseId } })
-const formatDateTime = (d) => (d ? new Date(d).toLocaleString() : '-')
+const parseServerDate = (v) => {
+  if (!v) return null
+  let s = String(v)
+  // Backend hantar tanpa 'Z' -> anggap UTC supaya tak ikut timezone browser secara rawak
+  if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) s += 'Z'
+  const d = new Date(s)
+  return isNaN(d) ? null : d
+}
+const formatDateTime = (v) => {
+  const d = parseServerDate(v)
+  if (!d) return '-'
+  return d.toLocaleString('en-MY', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', second: '2-digit',
+    hour12: true,
+  })
+}
 const duration = computed(() => formatDuration(run.value?.started_at, run.value?.completed_at))
 
 const statusHex = (st) => {
@@ -361,79 +378,79 @@ onMounted(load)
 
 <style scoped>
 .report-page {
-  background: #f8fafc;
+  background: rgba(var(--v-theme-on-surface), 0.05);
   min-height: 100vh;
-  color: #1e293b;
+  color: rgb(var(--v-theme-on-surface));
   font-family: 'Inter', 'Segoe UI', -apple-system, sans-serif;
 }
 .page-bar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 28px; background: #ffffff; border-bottom: 1px solid #e2e8f0;
+  padding: 14px 28px; background: rgb(var(--v-theme-surface)); border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
-.page-title { font-size: 1.15rem; color: #1e293b; }
-.page-crumb { font-size: 0.82rem; color: #64748b; display: flex; gap: 6px; align-items: center; }
+.page-title { font-size: 1.15rem; color: rgb(var(--v-theme-on-surface)); }
+.page-crumb { font-size: 0.82rem; color: rgba(var(--v-theme-on-surface), 0.7); display: flex; gap: 6px; align-items: center; }
 .crumb-code { font-weight: 700; color: #3b82f6; }
 .crumb-sep { color: #cbd5e1; }
 .back-btn { border-radius: 8px; }
 .page-body { max-width: 960px; margin: 0 auto; padding: 24px 28px 48px; }
 
 .card {
-  background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px;
+  background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: 12px; padding: 20px 24px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 .card-title {
-  font-size: 0.95rem; font-weight: 700; color: #0f172a; margin-bottom: 14px;
+  font-size: 0.95rem; font-weight: 700; color: rgb(var(--v-theme-on-surface)); margin-bottom: 14px;
   padding-bottom: 10px; border-bottom: 2px solid #0f766e;
 }
 
 .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px 24px; }
-.info-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #94a3b8; margin-bottom: 3px; }
-.info-value { font-size: 0.88rem; font-weight: 600; color: #0f172a; overflow-wrap: anywhere; }
+.info-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.5); margin-bottom: 3px; }
+.info-value { font-size: 0.88rem; font-weight: 600; color: rgb(var(--v-theme-on-surface)); overflow-wrap: anywhere; }
 
 .summary-row { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
 .donut-wrap { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
 .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.donut-num { font-size: 1.4rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
-.donut-label { font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.donut-num { font-size: 1.4rem; font-weight: 700; color: rgb(var(--v-theme-on-surface)); line-height: 1.1; }
+.donut-label { font-size: 0.65rem; color: rgba(var(--v-theme-on-surface), 0.7); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; margin-bottom: 8px; }
 .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 .legend-label { font-weight: 700; min-width: 64px; }
-.legend-count { color: #475569; }
+.legend-count { color: rgba(var(--v-theme-on-surface), 0.7); }
 
 .case-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 12px; overflow-wrap: anywhere; }
-.step-row { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+.step-row { padding: 10px 0; border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
 .step-row:last-child { border-bottom: none; }
 .step-head { display: flex; align-items: flex-start; gap: 10px; }
 .step-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
-.step-name { flex: 1; min-width: 0; font-size: 0.9rem; color: #1e293b; overflow-wrap: anywhere; }
+.step-name { flex: 1; min-width: 0; font-size: 0.9rem; color: rgb(var(--v-theme-on-surface)); overflow-wrap: anywhere; }
 .step-status { font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
 
 /* Defect block under the step. Long text wraps inside the box and only takes the height it needs. */
 .defect-box {
   margin: 8px 0 2px 19px; padding: 10px 14px;
-  background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 0 8px 8px 0;
+  background: rgba(239, 68, 68, 0.10); border-left: 3px solid #ef4444; border-radius: 0 8px 8px 0;
 }
-.defect-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #b91c1c; margin-bottom: 2px; }
+.defect-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acc-red-deep, #b91c1c); margin-bottom: 2px; }
 .defect-text {
-  font-size: 0.82rem; line-height: 1.45; color: #475569;
+  font-size: 0.82rem; line-height: 1.45; color: rgba(var(--v-theme-on-surface), 0.7);
   white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 8px;
 }
-.defect-main { font-size: 0.88rem; color: #0f172a; }
-.defect-meta { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 6px; }
+.defect-main { font-size: 0.88rem; color: rgb(var(--v-theme-on-surface)); }
+.defect-meta { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.7); margin-bottom: 6px; }
 .sev { color: #fff; padding: 1px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; background: #64748b; }
 .sev-critical, .sev-high { background: #ef4444; }
 .sev-medium { background: #f59e0b; }
 .sev-low { background: #10b981; }
 .more-btn {
   display: inline-flex; align-items: center; gap: 2px; background: none; border: none; padding: 0;
-  font-size: 0.75rem; font-weight: 600; color: #b91c1c; cursor: pointer;
+  font-size: 0.75rem; font-weight: 600; color: var(--acc-red-deep, #b91c1c); cursor: pointer;
 }
 .more-btn:hover { text-decoration: underline; }
 .att-block { margin: 4px 0 8px; }
 .att-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.att-thumb img { height: 96px; max-width: 180px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; display: block; }
-.att-file { display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem; font-weight: 600; color: #b91c1c; background: #fff; border: 1px solid #fecaca; border-radius: 6px; padding: 4px 10px; text-decoration: none; }
-.att-file:hover { background: #fef2f2; }
+.att-thumb img { height: 96px; max-width: 180px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); background: rgb(var(--v-theme-surface)); display: block; }
+.att-file { display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem; font-weight: 600; color: var(--acc-red-deep, #b91c1c); background: rgb(var(--v-theme-surface)); border: 1px solid #fecaca; border-radius: 6px; padding: 4px 10px; text-decoration: none; }
+.att-file:hover { background: rgba(239, 68, 68, 0.10); }
 .defect-more { margin-top: 8px; }
 .defect-more > div:last-child .defect-text { margin-bottom: 0; }
 </style>

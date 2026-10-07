@@ -9,7 +9,7 @@
               <v-icon color="teal-darken-2" class="mr-2">mdi-comment-text-multiple-outline</v-icon>Feedback
             </div>
             <div class="page-subheading">Defects and observations logged across every test run</div>
-            <div v-if="apiLoading" class="text-caption" style="color: #0f766e;">Loading data from the server</div>
+            <div v-if="apiLoading" class="text-caption" style="color: var(--acc-teal, #0f766e);">Loading data from the server</div>
           </div>
         </div>
       </v-col>
@@ -95,7 +95,7 @@
                 <td><span class="text-body-2">{{ d.reported_by || 'Unknown' }}</span></td>
                 <td><span class="text-caption text-grey">{{ formatDateTime(d.dt_created) }}</span></td>
                 <td>
-                  <v-btn icon variant="tonal" size="x-small" color="teal-darken-2" title="View details" @click="openDefectDetail(d)">
+                  <v-btn icon variant="tonal" size="x-small" color="teal-darken-2" title="View details" @click="openDefectPage(d)">
                     <v-icon size="small">mdi-eye-outline</v-icon>
                   </v-btn>
                 </td>
@@ -226,65 +226,16 @@
       </v-window-item>
     </v-window>
 
-    <!-- ===================== DEFECT DETAIL DIALOG ===================== -->
-    <v-dialog v-model="detailDialog" max-width="560">
-      <v-card class="rounded-lg" v-if="selectedDefect">
-        <v-card-title class="pa-4 text-white dialog-header text-wrap">
-          <div class="d-flex align-start justify-space-between" style="gap: 12px;">
-            <div style="min-width: 0;">
-              <div class="text-subtitle-1 font-weight-bold" style="white-space: normal; overflow-wrap: anywhere; line-height: 1.35;">{{ selectedDefect.test_case_code }} — {{ selectedDefect.step_name }}</div>
-              <div class="text-caption" style="opacity: 0.8;">
-                Reported by {{ selectedDefect.reported_by || 'Unknown' }} · {{ formatDateTime(selectedDefect.dt_created) }}
-              </div>
-            </div>
-            <v-btn icon variant="text" size="small" color="white" class="flex-shrink-0" @click="detailDialog = false">
-              <v-icon>mdi-close</v-icon>
-            </v-btn>
-          </div>
-        </v-card-title>
-
-        <v-card-text class="pa-4">
-          <div class="d-flex mb-4" style="gap: 8px;">
-            <v-chip size="small" :color="getSeverityColor(selectedDefect.severity)" label class="font-weight-bold">
-              {{ selectedDefect.severity || 'Unset' }}
-            </v-chip>
-            <v-chip v-if="selectedDefect.ticket_id" size="small" variant="tonal" color="grey" label>
-              Ticket: {{ selectedDefect.ticket_id }}
-            </v-chip>
-          </div>
-
-          <div class="text-caption font-weight-bold mb-1" style="color: #760f6f;">ACTUAL RESULT</div>
-          <div class="mb-4">{{ selectedDefect.actual_result || '-' }}</div>
-
-          <div class="text-caption font-weight-bold mb-1" style="color: #760f6f;">COMMENTS</div>
-          <div>{{ selectedDefect.comments || '-' }}</div>
-
-          <template v-if="selectedAttachments.length">
-            <div class="text-caption font-weight-bold mb-2 mt-4" style="color: #760f6f;">
-              ATTACHMENTS ({{ selectedAttachments.length }})
-            </div>
-            <div class="att-list">
-              <template v-for="a in selectedAttachments" :key="a.id">
-                <a v-if="a.is_image" :href="a.url" target="_blank" rel="noopener" class="att-thumb" :title="a.file_name">
-                  <img :src="a.url" :alt="a.file_name" />
-                </a>
-                <a v-else :href="a.url" target="_blank" rel="noopener" class="att-file">
-                  <v-icon size="14">mdi-paperclip</v-icon> {{ a.file_name }}
-                </a>
-              </template>
-            </div>
-          </template>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
   </v-container>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { loadAttachmentMap } from '@/utils/runReportAttachments'
 
 const API_BASE = 'https://localhost:7049/api'
+const router = useRouter()
 
 const apiLoading = ref(false)
 const activeTab = ref('defects')
@@ -367,14 +318,8 @@ const fetchDefects = async () => {
   attachmentsByStep.value = Object.fromEntries(await loadAttachmentMap(defects.value.map(stepKey)))
 }
 
-const detailDialog = ref(false)
-const selectedDefect = ref(null)
-const selectedAttachments = computed(() => (selectedDefect.value ? attachmentsFor(selectedDefect.value) : []))
-const openDefectDetail = (defect) => {
-  selectedDefect.value = defect
-  detailDialog.value = true
-}
-
+// Defect details now open on their own page instead of a popup
+const openDefectPage = (defect) => router.push({ name: 'FeedbackDefectDetail', params: { id: defect.id } })
 
 const feedbacks = ref([])
 const feedbackSearch = ref('')
@@ -472,11 +417,11 @@ onMounted(async () => {
   font-family: 'IBM Plex Sans', sans-serif;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #101828;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .page-subheading {
-  color: #667085;
+  color: rgba(var(--v-theme-on-surface), 0.7);
   font-size: 0.875rem;
   margin-top: 2px;
 }
@@ -489,7 +434,7 @@ onMounted(async () => {
 }
 
 .themed-card {
-  border-color: #e9d5ff !important;
+  border-color: rgba(168, 85, 247, 0.30) !important;
 }
 
 .table-header-row {
@@ -503,7 +448,7 @@ onMounted(async () => {
 }
 
 .defects-table :deep(tbody tr:hover) {
-  background-color: #fdf4ff !important;
+  background-color: rgba(217, 70, 239, 0.08) !important;
 }
 
 .feedback-card:hover {
@@ -514,28 +459,28 @@ onMounted(async () => {
 .id-text {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #1e293b;
+  color: rgb(var(--v-theme-on-surface));
   white-space: nowrap;
 }
 
 .att-list { display: flex; flex-wrap: wrap; gap: 10px; }
 .att-thumb img {
   height: 120px; max-width: 220px; object-fit: cover; display: block;
-  border-radius: 8px; border: 1px solid #e9d5ff; background: #fff;
+  border-radius: 8px; border: 1px solid rgba(168, 85, 247, 0.30); background: rgb(var(--v-theme-surface));
 }
 .att-thumb:hover img { border-color: #d946ef; box-shadow: 0 3px 10px rgba(118, 15, 111, 0.18); }
 .att-file {
   display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 600;
-  color: #760f6f; background: #fdf4ff; border: 1px solid #e9d5ff; border-radius: 6px;
+  color: var(--acc-purple, #760f6f); background: rgba(217, 70, 239, 0.08); border: 1px solid rgba(168, 85, 247, 0.30); border-radius: 6px;
   padding: 5px 10px; text-decoration: none;
 }
-.att-file:hover { background: #fae8ff; }
+.att-file:hover { background: rgba(217, 70, 239, 0.14); }
 
 .dialog-header {
   background: linear-gradient(135deg, #670e5f 0%, #e987d4 100%);
 }
 
 .border-top {
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 </style>

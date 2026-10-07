@@ -582,7 +582,7 @@ onMounted(refreshAll)
 <style scoped>
 .audit-card {
   border-radius: 12px;
-  border-color: #e9d5ff !important;
+  border-color: rgba(168, 85, 247, 0.30) !important;
 }
 
 .header-accent {
@@ -615,18 +615,18 @@ onMounted(refreshAll)
   cursor: pointer;
 }
 .audit-table :deep(tbody tr:hover) {
-  background-color: #fdf4ff !important;
+  background-color: rgba(217, 70, 239, 0.08) !important;
 }
 
 .run-id-text {
-  color: #a21caf;
+  color: var(--acc-purple, #a21caf);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .drawer-header,
 .drawer-footer {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 .drawer-header {
   background: linear-gradient(135deg, #670e5f 0%, #e987d4 100%);
@@ -638,7 +638,7 @@ onMounted(refreshAll)
 }
 .drawer-footer {
   border-bottom: none;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .detail-block {
@@ -646,7 +646,7 @@ onMounted(refreshAll)
 }
 .detail-label {
   font-size: 0.7rem;
-  color: #760f6f;
+  color: var(--acc-purple, #760f6f);
   font-weight: 600;
   margin-bottom: 2px;
 }
@@ -661,8 +661,8 @@ onMounted(refreshAll)
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: rgba(var(--v-theme-on-surface), 0.05);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 8px;
   padding: 10px 12px;
   margin-top: 4px;

@@ -1,6 +1,6 @@
 <template>
   <div class="cycles-panel">
-    <!-- HEADER -->
+   
     <div class="d-flex align-center justify-space-between mb-3">
       <div>
         <div class="text-subtitle-1 font-weight-bold">Test Cycles</div>
@@ -18,8 +18,7 @@
         New Test Cycle
       </v-btn>
     </div>
-
-    <!-- TABLE (same look as Test Cases) -->
+    
     <v-card variant="outlined" class="rounded-lg pa-0 overflow-hidden main-table-card" elevation="1">
       <v-table hover density="compact" class="cycle-table">
         <thead>
@@ -27,7 +26,6 @@
             <th class="font-weight-bold">CYCLE ID</th>
             <th class="font-weight-bold">VERSION TAG</th>
             <th class="font-weight-bold">ASSIGNED TO</th>
-            <th class="font-weight-bold" style="min-width: 150px;">PROGRESS</th>
             <th class="font-weight-bold">AUTO RULE</th>
             <th class="font-weight-bold text-center" style="width: 120px;">ACTIONS</th>
           </tr>
@@ -46,7 +44,7 @@
               >
                 <v-icon size="18">{{ isExpanded(item.id) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}</v-icon>
               </v-btn>
-              <span class="id-text font-weight-bold">{{ item.cycle_code }}</span>
+              <span class="id-text id-link font-weight-bold" @click="openCycleDetail(item)">{{ item.cycle_code }}</span>
             </td>
 
             <td class="py-1">
@@ -61,24 +59,6 @@
             </td>
 
             <td class="py-1">
-              <div v-if="casesOf(item.id).length === 0" class="text-caption text-grey">No test cases</div>
-              <div v-else>
-                <div class="text-caption font-weight-bold">
-                  {{ progressOf(item.id).passed }} / {{ progressOf(item.id).total }} Passed
-                  <span v-if="progressOf(item.id).failed > 0" class="text-red-darken-1"> · {{ progressOf(item.id).failed }} Failed</span>
-                </div>
-                <v-progress-linear
-                  :model-value="progressOf(item.id).pct"
-                  color="#0f766e"
-                  bg-color="grey-lighten-2"
-                  height="5"
-                  rounded
-                  class="mt-1"
-                ></v-progress-linear>
-              </div>
-            </td>
-
-            <td class="py-1">
               <v-chip size="x-small" variant="tonal" color="purple-darken-1" label class="font-weight-bold">
                 {{ autoRuleLabel(item.auto_assign_rule) }}
               </v-chip>
@@ -86,7 +66,7 @@
 
             <td class="text-center py-1">
               <div class="action-buttons-group">
-                <v-btn icon variant="tonal" size="x-small" color="teal-darken-2" title="View" style="width: 22px; height: 22px;" @click="openViewDialog(item)">
+                <v-btn icon variant="tonal" size="x-small" color="teal-darken-2" title="View" style="width: 22px; height: 22px;" @click="openCycleDetail(item)">
                   <v-icon size="14">mdi-eye-outline</v-icon>
                 </v-btn>
                 <v-btn icon variant="tonal" size="x-small" color="blue-darken-1" title="Edit" style="width: 22px; height: 22px;" @click="openEditDialog(item)">
@@ -100,7 +80,7 @@
           </tr>
 
           <tr v-if="isExpanded(item.id)" class="expand-row">
-            <td colspan="6" class="py-3 pr-4 bg-slate-50" style="padding-left: 58px !important;">
+            <td colspan="5" class="py-3 pr-4 bg-slate-50" style="padding-left: 58px !important;">
               <div v-if="casesOf(item.id).length === 0" class="text-caption text-grey">No test cases in this cycle yet.</div>
               <div v-else>
                 <div
@@ -121,12 +101,11 @@
           </template>
 
           <tr v-if="cyclesList.length === 0">
-            <td colspan="6" class="text-center text-grey pa-8">No test cycles available.</td>
+            <td colspan="5" class="text-center text-grey pa-8">No test cycles available.</td>
           </tr>
         </tbody>
       </v-table>
 
-      <!-- FOOTER / PAGINATION -->
       <div
         v-if="cyclesList.length > 0"
         class="d-flex flex-wrap justify-space-between align-center pa-2 px-3 border-t bg-slate-50"
@@ -159,7 +138,7 @@
       </div>
     </v-card>
 
-    <!-- CREATE / EDIT DIALOG (same layout as New Test Case) -->
+  
     <v-dialog v-model="dialog" max-width="900px" persistent scrollable>
       <v-card class="rounded-xl overflow-hidden cycles-panel">
         <v-card-title class="text-white pa-4 d-flex align-center justify-space-between dialog-header">
@@ -281,88 +260,16 @@
 
         <v-card-actions class="pa-4 border-t bg-slate-50">
           <v-spacer></v-spacer>
-          <v-btn variant="tonal" class="text-capitalize font-weight-bold rounded-lg mr-2" @click="dialog = false">Cancel</v-btn>
+          <v-btn variant="tonal" color="grey-darken-2" class="text-capitalize font-weight-bold rounded-lg mr-2" @click="dialog = false">Cancel</v-btn>
           <v-btn
+            variant="flat"
             color="#0f766e"
-            class="px-6 rounded-lg text-capitalize text-white font-weight-bold btn-glow"
+            class="px-6 rounded-lg text-capitalize font-weight-bold btn-glow save-btn"
             :loading="saving"
             :disabled="saving"
             @click="saveCycle"
           >
             {{ isEditing ? 'Update Test Cycle' : 'Save Test Cycle' }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- VIEW DIALOG (details hidden from the table) -->
-    <v-dialog v-model="viewDialog" max-width="560px">
-      <v-card v-if="viewTarget" class="rounded-xl overflow-hidden cycles-panel">
-        <v-card-title class="text-white pa-4 d-flex align-center justify-space-between dialog-header">
-          <span class="text-h6 font-weight-bold d-flex align-center">
-            <v-icon class="mr-2">mdi-eye-outline</v-icon>Test Cycle Details
-          </span>
-          <v-btn icon variant="text" size="small" @click="viewDialog = false">
-            <v-icon color="white">mdi-close</v-icon>
-          </v-btn>
-        </v-card-title>
-
-        <v-card-text class="pa-6">
-          <div class="view-grid">
-            <div class="testmo-props-field">
-              <span class="testmo-props-label">Cycle ID</span>
-              <span class="id-text font-weight-bold align-self-start">{{ viewTarget.cycle_code }}</span>
-            </div>
-            <div class="testmo-props-field">
-              <span class="testmo-props-label">Version Tag</span>
-              <span class="text-body-2 font-weight-medium">{{ viewTarget.name }}</span>
-            </div>
-            <div class="testmo-props-field">
-              <span class="testmo-props-label">Department</span>
-              <span class="dept-tag text-caption font-weight-bold align-self-start">{{ viewTarget.department }}</span>
-            </div>
-            <div class="testmo-props-field">
-              <span class="testmo-props-label">Status</span>
-              <v-chip :color="getStatusColor(viewTarget.status)" size="x-small" label class="font-weight-bold align-self-start">
-                {{ viewTarget.status }}
-              </v-chip>
-            </div>
-            <div class="testmo-props-field">
-              <span class="testmo-props-label">Start Date</span>
-              <span class="text-body-2">{{ viewTarget.dt_start_formatted }}</span>
-            </div>
-            <div class="testmo-props-field">
-              <span class="testmo-props-label">End Date</span>
-              <span class="text-body-2">{{ viewTarget.dt_end_formatted }}</span>
-            </div>
-            <div class="testmo-props-field">
-              <span class="testmo-props-label">Created Date</span>
-              <span class="text-body-2">{{ viewTarget.created_date_formatted }}</span>
-            </div>
-            <div class="testmo-props-field">
-              <span class="testmo-props-label">Created By</span>
-              <span class="text-body-2">{{ viewTarget.created_by_name }}</span>
-            </div>
-            <div class="testmo-props-field">
-              <span class="testmo-props-label">Assigned To</span>
-              <span class="text-body-2">{{ viewTarget.assigned_to_name }}</span>
-            </div>
-            <div class="testmo-props-field">
-              <span class="testmo-props-label">Auto Rule</span>
-              <span class="text-body-2">{{ autoRuleLabel(viewTarget.auto_assign_rule) }}</span>
-            </div>
-          </div>
-        </v-card-text>
-
-        <v-card-actions class="pa-4 border-t bg-slate-50">
-          <v-spacer></v-spacer>
-          <v-btn variant="tonal" class="text-capitalize font-weight-bold rounded-lg mr-2" @click="viewDialog = false">Close</v-btn>
-          <v-btn
-            color="#0f766e"
-            class="px-6 rounded-lg text-capitalize text-white font-weight-bold btn-glow"
-            @click="viewDialog = false; openEditDialog(viewTarget)"
-          >
-            Edit
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -387,6 +294,9 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 // Test cases come from the parent (TestCasepage.vue)
 const props = defineProps({
@@ -492,13 +402,6 @@ watch(totalPages, (n) => { if (currentPage.value > n) currentPage.value = n })
 const casesOf = (cycleId) =>
   props.testCases.filter(tc => String(tc.cycle_id) === String(cycleId))
 
-const progressOf = (cycleId) => {
-  const list = casesOf(cycleId)
-  const passed = list.filter(tc => tc.status === 'Passed').length
-  const failed = list.filter(tc => tc.status === 'Failed').length
-  return { total: list.length, passed, failed, pct: list.length ? Math.round((passed / list.length) * 100) : 0 }
-}
-
 const caseStatusColor = (status) => {
   if (status === 'Passed') return 'success'
   if (status === 'Failed') return 'error'
@@ -547,13 +450,9 @@ const dialog = ref(false)
 const isEditing = ref(false)
 const deleteDialog = ref(false)
 const deleteTarget = ref(null)
-const viewDialog = ref(false)
-const viewTarget = ref(null)
 
-const openViewDialog = (item) => {
-  viewTarget.value = item
-  viewDialog.value = true
-}
+// Cycle details now open on their own page instead of a popup
+const openCycleDetail = (item) => router.push({ name: 'TestCycleDetail', params: { id: item.id } })
 
 const emptyForm = () => ({
   id: null,
@@ -706,18 +605,18 @@ onMounted(() => {
 }
 
 .id-text {
-  color: #0f172a;
+  color: rgb(var(--v-theme-on-surface));
   font-size: 12px;
   letter-spacing: 0.3px;
   white-space: nowrap;
 }
 
 .dept-tag {
-  background-color: #f1f5f9;
-  color: #334155;
+  background-color: rgba(var(--v-theme-on-surface), 0.05);
+  color: rgb(var(--v-theme-on-surface));
   padding: 3px 8px;
   border-radius: 6px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .table-header-row {
@@ -735,17 +634,17 @@ onMounted(() => {
 
 .cycle-row {
   transition: all 0.2s ease;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .cycle-row:hover {
-  background-color: #f0fdfa !important;
+  background-color: rgba(15, 118, 110, 0.1) !important;
   transform: translateY(-1px);
 }
 
-.main-table-card { border: 1px solid #cbd5e1; }
-.bg-slate-50 { background-color: #f8fafc; }
-.border-t { border-top: 1px solid #e2e8f0; }
+.main-table-card { border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+.bg-slate-50 { background-color: rgba(var(--v-theme-on-surface), 0.05); }
+.border-t { border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
 
 .action-buttons-group {
   display: flex;
@@ -788,7 +687,7 @@ onMounted(() => {
 }
 
 .testmo-props-col {
-  border-left: 1px solid #e2e8f0;
+  border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   padding-left: 20px;
   display: flex;
   flex-direction: column;
@@ -811,7 +710,22 @@ onMounted(() => {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #94a3b8;
+  color: rgba(var(--v-theme-on-surface), 0.5);
   font-weight: 700;
+}
+.id-link { cursor: pointer; }
+.id-link:hover { text-decoration: underline; color: var(--acc-teal, #0f766e); }
+
+/* Solid, always-readable Save/Update button (was washing out to pale mint) */
+.save-btn {
+  background-color: #0f766e !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+.save-btn:hover { background-color: #0d5f59 !important; }
+.save-btn.v-btn--disabled {
+  background-color: #0f766e !important;
+  color: #ffffff !important;
+  opacity: 0.65 !important;
 }
 </style>

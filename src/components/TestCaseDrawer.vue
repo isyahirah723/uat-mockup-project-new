@@ -131,5 +131,5 @@ const save = () => {
 </script>
 
 <style scoped>
-.border-t { border-top: 1px solid #e2e8f0; }
+.border-t { border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
 </style>

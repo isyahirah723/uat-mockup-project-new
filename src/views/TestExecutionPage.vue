@@ -60,7 +60,7 @@
       </v-alert>
 
       <!-- If Run is Completed View -->
-      <div v-if="runCompleted" class="completion-box elevation-3 text-center py-12 px-6 rounded-2xl bg-white">
+      <div v-if="runCompleted" class="completion-box elevation-3 text-center py-12 px-6 rounded-2xl bg-surface">
         <v-icon size="72" color="#10b981" class="mb-4">mdi-check-decagram</v-icon>
         <div class="text-h5 font-weight-bold text-slate-900 mb-2">Test Run Submitted Successfully!</div>
         <div class="text-body-1 text-grey-darken-1 mb-2">
@@ -84,7 +84,7 @@
 
       <!-- Active Execution Steps View -->
       <template v-else>
-        <div v-if="stepsLoading" class="text-center py-16 bg-white rounded-xl elevation-1">
+        <div v-if="stepsLoading" class="text-center py-16 bg-surface rounded-xl elevation-1">
           <v-progress-circular indeterminate color="indigo-darken-3" size="48" width="4" />
           <div class="text-subtitle-2 text-grey-darken-1 mt-3">Loading test execution steps...</div>
         </div>
@@ -110,7 +110,7 @@
           </div>
 
           <!-- Step Progress Timeline Indicator -->
-          <div class="step-timeline-wrapper elevation-2 pa-5 mb-6 rounded-xl bg-white">
+          <div class="step-timeline-wrapper elevation-2 pa-5 mb-6 rounded-xl bg-surface">
             <div class="d-flex align-center justify-between mb-2 px-2">
               <span class="text-caption font-weight-bold text-slate-500 uppercase-label">Test Step Progress</span>
               <span class="text-caption font-weight-bold text-indigo-darken-3">Step {{ viewingStepIndex + 1 }} of {{ steps.length }}</span>
@@ -141,7 +141,7 @@
           </div>
 
           <!-- Active Step Card -->
-          <v-card v-if="activeStep" flat class="pa-7 rounded-2xl bg-white elevation-3 border-subtle mb-6 active-step-box">
+          <v-card v-if="activeStep" flat class="pa-7 rounded-2xl bg-surface elevation-3 border-subtle mb-6 active-step-box">
             <div class="d-flex align-center justify-space-between mb-4 pb-3 border-bottom-subtle">
               <div class="d-flex align-center" style="gap: 14px;">
                 <div class="step-badge-num">{{ viewingStepIndex + 1 }}</div>
@@ -237,7 +237,7 @@
               <div v-for="fs in defectRequiredSteps" :key="'defect-' + fs.test_step_id" class="mb-4">
                 
                 <!-- Shown while the defect form is open for this step -->
-                <v-card v-if="activeDefectStepId === fs.test_step_id" flat class="pa-6 rounded-2xl bg-white elevation-3 border-error mb-4">
+                <v-card v-if="activeDefectStepId === fs.test_step_id" flat class="pa-6 rounded-2xl bg-surface elevation-3 border-error mb-4">
                   <div class="d-flex align-center justify-between mb-4 pb-2 border-bottom-subtle">
                     <div class="d-flex align-center" style="gap: 10px;">
                       <v-icon color="error" size="24">mdi-alert-circle</v-icon>
@@ -266,7 +266,7 @@
                 </v-card>
 
                 <!-- Summary row shown when the defect form is closed -->
-                <div v-else class="pa-4 rounded-xl bg-white elevation-2 border-subtle d-flex align-center justify-space-between flex-wrap" style="gap: 12px;">
+                <div v-else class="pa-4 rounded-xl bg-surface elevation-2 border-subtle d-flex align-center justify-space-between flex-wrap" style="gap: 12px;">
                   <div class="d-flex align-center" style="gap: 12px;">
                     <span class="text-h5">{{ fs.execution_status === 'Failed' ? '🔴' : '🟠' }}</span>
                     <div>
@@ -274,7 +274,7 @@
                       <div class="text-caption" :class="fs.has_defect ? 'text-success font-weight-bold' : 'text-error'">
                         {{ fs.has_defect ? '✓ Defect logged' : '⚠ No defect logged yet' }}
                       </div>
-                      <div v-if="fs.ticket_id" class="text-caption font-weight-bold" style="color: #b91c1c;">{{ fs.ticket_id }}</div>
+                      <div v-if="fs.ticket_id" class="text-caption font-weight-bold" style="color: var(--acc-red-deep, #b91c1c);">{{ fs.ticket_id }}</div>
                     </div>
                   </div>
                   <v-btn
@@ -298,7 +298,7 @@
             </template>
 
             <!-- Final Feedback Card -->
-            <v-card flat class="pa-7 rounded-2xl bg-white elevation-3 border-subtle mb-6">
+            <v-card flat class="pa-7 rounded-2xl bg-surface elevation-3 border-subtle mb-6">
               <div class="text-subtitle-1 font-weight-bold text-slate-900 mb-4">Overall Feedback & Submission</div>
               <v-row density="comfortable">
                 <v-col cols="12" sm="6">
@@ -697,8 +697,7 @@ const saveDefect = async (step) => {
     const savedStep = await parseJsonSafe(defectRes)
     const ticketId = savedStep?.ticket_id || defectForm.value.ticket_id || ''
 
-    // v-file-input (Vuetify 3) v-model is an ARRAY of File objects, even for a single file.
-    // Appending the array itself to FormData sends "[object File]" text, so the API sees no file.
+    
     const att = defectForm.value.attachment
     const files = (Array.isArray(att) ? att : att ? [att] : []).filter((f) => f instanceof File)
 
@@ -790,10 +789,9 @@ const submitRun = async () => {
   }
 }
 
-// ---- PDF report ----
-// Same generator as the Run Report page: one report layout everywhere.
+
 const generateReport = async () => {
-  // load the screenshots/files uploaded with each defect so they appear in the PDF
+  
   const stepsForPdf = await embedImages(await withAttachments(steps.value))
   generateRunReportPdf({
     testCase: activeCase.value,
@@ -810,10 +808,10 @@ const generateReport = async () => {
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 .execution-layout {
-  background: #f4f6f9;
+  background: rgb(var(--v-theme-background));
   min-height: 100vh;
   font-family: 'Inter', sans-serif;
-  color: #1e293b;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .exec-header-bar {
@@ -821,25 +819,25 @@ const generateReport = async () => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 32px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  background: rgb(var(--v-theme-surface));
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .exec-page-title {
   font-size: 1.2rem;
-  color: #0f172a;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .exec-crumb {
   font-size: 0.85rem;
-  color: #64748b;
+  color: rgba(var(--v-theme-on-surface), 0.7);
   display: flex;
   gap: 6px;
   align-items: center;
 }
 
 .crumb-code {
-  color: #4f46e5;
+  color: var(--acc-indigo, #4f46e5);
 }
 
 .back-btn-styled {
@@ -855,8 +853,8 @@ const generateReport = async () => {
 }
 
 .info-hero-card {
-  background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%);
-  border: 1px solid #c7d2fe;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.16) 0%, rgba(168, 85, 247, 0.14) 100%);
+  border: 1px solid rgba(79, 70, 229, 0.30);
   border-radius: 16px;
 }
 
@@ -872,29 +870,29 @@ const generateReport = async () => {
 }
 
 .hero-meta-badge {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(var(--v-theme-on-surface), 0.08);
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 0.82rem;
-  color: #334155;
-  border: 1px solid #e2e8f0;
+  color: rgb(var(--v-theme-on-surface));
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   display: flex;
   align-items: center;
 }
 
 .description-card-modern {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: rgba(59, 130, 246, 0.10);
+  border: 1px solid rgba(59, 130, 246, 0.30);
 }
 
 .instruction-card-modern {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background: rgba(34, 197, 94, 0.10);
+  border: 1px solid rgba(34, 197, 94, 0.30);
 }
 
 .step-timeline-wrapper {
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: rgb(var(--v-theme-surface));
 }
 
 .step-timeline-node {
@@ -903,8 +901,8 @@ const generateReport = async () => {
   border-radius: 50%;
   font-size: 0.85rem;
   font-weight: 700;
-  background-color: #f1f5f9;
-  color: #64748b;
+  background-color: rgba(var(--v-theme-on-surface), 0.05);
+  color: rgba(var(--v-theme-on-surface), 0.7);
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(0,0,0,0.04);
@@ -933,7 +931,7 @@ const generateReport = async () => {
 }
 
 .node-locked {
-  background-color: #f8fafc;
+  background-color: rgba(var(--v-theme-on-surface), 0.05);
   color: #cbd5e1;
   cursor: not-allowed;
 }
@@ -945,7 +943,7 @@ const generateReport = async () => {
 .step-timeline-connector {
   width: 28px;
   height: 3px;
-  background-color: #e2e8f0;
+  background-color: rgba(148, 163, 184, 0.3);
   border-radius: 2px;
 }
 
@@ -954,7 +952,7 @@ const generateReport = async () => {
 }
 
 .border-subtle {
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .border-error {
@@ -962,18 +960,18 @@ const generateReport = async () => {
 }
 
 .border-bottom-subtle {
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .border-top-subtle {
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .step-badge-num {
   width: 40px;
   height: 40px;
-  background: #e0e7ff;
-  color: #4f46e5;
+  background: rgba(79, 70, 229, 0.16);
+  color: var(--acc-indigo, #4f46e5);
   font-weight: 700;
   border-radius: 12px;
   display: flex;
@@ -983,8 +981,8 @@ const generateReport = async () => {
 }
 
 .expected-box {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: rgba(var(--v-theme-on-surface), 0.05);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .uppercase-label {
@@ -993,8 +991,58 @@ const generateReport = async () => {
 }
 
 .completion-box {
-  background: #ffffff;
+  background: rgb(var(--v-theme-surface));
   border-radius: 20px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+/* ===== Dark mode: terangkan teks yang terlalu gelap ===== */
+.v-theme--dark .exec-page-title {
+  color: #ffffff;
+}
+
+.v-theme--dark .exec-crumb {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.v-theme--dark .crumb-code {
+  color: #a5b4fc;
+}
+
+.v-theme--dark .text-indigo-darken-3 {
+  color: #a5b4fc !important;
+}
+
+.v-theme--dark .text-indigo-darken-4 {
+  color: #e0e7ff !important;
+}
+
+.v-theme--dark .text-grey-darken-1,
+.v-theme--dark .text-grey {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.v-theme--dark .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+.v-theme--dark .hero-meta-badge {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.v-theme--dark .description-card-modern,
+.v-theme--dark .instruction-card-modern {
+  color: #f1f5f9;
+}
+
+.v-theme--dark .node-locked {
+  color: #94a3b8;
+}
+
+.v-theme--dark .step-badge-num {
+  color: #c7d2fe;
+  background: rgba(99, 102, 241, 0.3);
 }
 </style>

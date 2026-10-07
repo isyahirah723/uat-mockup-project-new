@@ -562,6 +562,6 @@ onMounted(() => {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 .cursor-pointer { cursor: pointer; }
-.border-b { border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
-.border-t { border-top: 1px solid rgba(0, 0, 0, 0.08); }
+.border-b { border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+.border-t { border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
 </style>

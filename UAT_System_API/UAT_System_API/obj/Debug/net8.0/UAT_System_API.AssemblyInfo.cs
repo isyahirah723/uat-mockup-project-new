@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UAT_System_API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c994ba70d11f59d29b5773424a8d3fa0e0d936aa")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5929d344af2c631876f055d955e723dcd40fb6fb")]
 [assembly: System.Reflection.AssemblyProductAttribute("UAT_System_API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UAT_System_API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

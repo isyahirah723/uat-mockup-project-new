@@ -11,7 +11,7 @@
               Test Case Repository
             </div>
             <div class="page-subheading" style="font-size: 0.75rem;">Every scripted test, tracked from draft to result</div>
-            <div v-if="apiLoading" class="text-caption mt-1 d-flex align-center" style="color: #0f766e; font-weight: 600; font-size: 0.7rem;">
+            <div v-if="apiLoading" class="text-caption mt-1 d-flex align-center" style="color: var(--acc-teal, #0f766e); font-weight: 600; font-size: 0.7rem;">
               <v-progress-circular indeterminate size="12" width="2" color="#0f766e" class="mr-1"></v-progress-circular>
               Loading data from the server...
             </div>
@@ -95,7 +95,7 @@
                   <v-icon size="14">mdi-pencil-outline</v-icon>
                 </v-btn>
 
-                <v-btn icon variant="tonal" size="x-small" color="teal-darken-2" title="View Details" style="width: 22px; height: 22px;" @click="openViewDialog(item)">
+                <v-btn icon variant="tonal" size="x-small" color="teal-darken-2" title="View Details" style="width: 22px; height: 22px;" @click="openViewPage(item)">
                   <v-icon size="14">mdi-eye-outline</v-icon>
                 </v-btn>
 
@@ -333,7 +333,7 @@
                     <span
                       v-if="form.cycleInput && !form.cycleId"
                       class="text-caption"
-                      style="font-size: 0.65rem; color: #0f766e;"
+                      style="font-size: 0.65rem; color: var(--acc-teal, #0f766e);"
                     >Cycle baru "{{ form.cycleInput }}" akan dicipta bila Save.</span>
                   </div>
 
@@ -442,150 +442,13 @@
 
         <v-card-actions class="pa-4 border-t bg-slate-50">
           <v-spacer></v-spacer>
-          <v-btn variant="tonal" @click="dialog = false" class="text-capitalize font-weight-bold rounded-lg mr-2">Cancel</v-btn>
-          <v-btn color="#0f766e" class="px-6 rounded-lg text-capitalize text-white font-weight-bold btn-glow" :loading="saving" :disabled="saving" @click="saveTestCase">Save Test Case</v-btn>
+          <v-btn variant="tonal" color="grey-darken-2" @click="dialog = false" class="text-capitalize font-weight-bold rounded-lg mr-2">Cancel</v-btn>
+          <v-btn variant="flat" color="#0f766e" class="px-6 rounded-lg text-capitalize font-weight-bold btn-glow save-btn" :loading="saving" :disabled="saving" @click="saveTestCase">Save Test Case</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
    
-    <v-dialog v-model="viewDialog" max-width="800px" scrollable>
-      <v-card class="rounded-xl overflow-hidden" v-if="viewItem">
-        <v-card-title class="text-white pa-4 d-flex align-center justify-space-between dialog-header">
-          <span class="text-h6 font-weight-bold">Test Case Details</span>
-          <v-btn icon variant="text" size="small" @click="viewDialog = false"><v-icon color="white">mdi-close</v-icon></v-btn>
-        </v-card-title>
-
-        <v-card-text class="pa-6" style="max-height: 65vh; overflow-y: auto;">
-          <div class="mb-4">
-            <div class="text-caption text-grey font-weight-bold">TITLE</div>
-            <div class="text-h6 font-weight-bold text-teal-darken-4">{{ viewItem.title }}</div>
-          </div>
-          
-          <v-row class="mb-2">
-            <v-col cols="6" sm="3">
-              <div class="text-caption text-grey font-weight-bold">ID</div>
-              <div class="font-weight-bold text-teal-darken-3">{{ viewItem.test_case_code || '#' + viewItem.id }}</div>
-            </v-col>
-            <v-col cols="6" sm="3">
-              <div class="text-caption text-grey font-weight-bold">DEPARTMENT</div>
-              <div>{{ viewItem.test_department || '-' }}</div>
-            </v-col>
-            <v-col cols="6" sm="3">
-              <div class="text-caption text-grey font-weight-bold">VERSION TAG</div>
-              <div>{{ viewItem.version_tag || '-' }}</div>
-            </v-col>
-            <v-col cols="6" sm="3">
-              <div class="text-caption text-grey font-weight-bold">STATUS</div>
-              <v-chip size="x-small" variant="flat" :color="getStatusColor(viewItem.status)" label class="font-weight-bold text-white">
-                {{ viewItem.status || 'Draft' }}
-              </v-chip>
-            </v-col>
-          </v-row>
-
-          <v-row class="mb-2">
-            <v-col cols="6" sm="3">
-              <div class="text-caption text-grey font-weight-bold">PRIORITY</div>
-              <v-chip size="x-small" variant="flat" :color="getPriorityColor(viewItem.priority)" label class="font-weight-bold text-white">
-                {{ viewItem.priority || 'Medium' }}
-              </v-chip>
-            </v-col>
-            <v-col cols="6" sm="9">
-              <div class="text-caption text-grey font-weight-bold mb-1">ASSIGNED TESTERS</div>
-              <div v-if="getAssignedUsers(viewItem.id).length" class="d-flex flex-wrap" style="gap: 4px;">
-                <v-chip
-                  v-for="a in getAssignedUsers(viewItem.id)"
-                  :key="a.id"
-                  size="small"
-                  variant="tonal"
-                  color="teal-darken-3"
-                  class="font-weight-medium"
-                >
-                  <v-icon start size="12">mdi-account</v-icon>
-                  {{ userNameById[a.user_id] || a.user_name || ('User #' + a.user_id) }}
-                </v-chip>
-              </div>
-              <span v-else class="text-caption text-grey-italic">Unassigned</span>
-            </v-col>
-          </v-row>
-
-          <v-divider class="my-4"></v-divider>
-          
-          <div class="mb-4">
-            <div class="text-caption text-grey font-weight-bold">DESCRIPTION</div>
-            <div class="text-body-2">{{ viewItem.test_description || 'No description' }}</div>
-          </div>
-
-          <v-divider class="my-4"></v-divider>
-          
-          <div class="text-subtitle-2 font-weight-bold mb-2 text-teal-darken-3">TEST STEPS ({{ viewItem.steps ? viewItem.steps.length : 0 }})</div>
-          <div v-if="viewItem.steps && viewItem.steps.length > 0">
-            <div v-for="(step, idx) in viewItem.steps" :key="idx" class="mb-2 pa-3 rounded-lg step-box">
-              <div class="d-flex align-center justify-space-between">
-                <div><span class="font-weight-bold mr-2 text-teal-darken-4">#{{ idx+1 }}</span> {{ step.description }}</div>
-                <v-chip size="x-small" variant="flat" class="text-white" :color="step.pass_fail === 'Pass' || step.passFail === 'Pass' ? 'green' : step.pass_fail === 'Fail' || step.passFail === 'Fail' ? 'red' : 'grey'">
-                  {{ step.pass_fail || step.passFail || 'N/A' }}
-                </v-chip>
-              </div>
-              <div class="text-caption text-grey mt-1">Expected: {{ step.expected || '-' }}</div>
-              <div class="text-caption text-grey" v-if="step.actual">Actual: {{ step.actual }}</div>
-            </div>
-          </div>
-          <div v-else class="text-grey text-caption">no steps provided.</div>
-
-          <v-divider class="my-4"></v-divider>
-          
-          <div class="text-subtitle-2 font-weight-bold mb-2 text-teal-darken-3">FEEDBACK ({{ viewItem.feedbacks ? viewItem.feedbacks.length : 0 }})</div>
-          <div v-if="viewItem.feedbacks && viewItem.feedbacks.length > 0">
-            <div v-for="(fb, idx) in viewItem.feedbacks" :key="idx" class="mb-2 pa-3 rounded-lg step-box">
-              <div class="d-flex align-center justify-space-between">
-                <span class="font-weight-bold text-caption">{{ fb.user_name || fb.user || 'Anonymous' }}</span>
-                <span class="text-amber-darken-2 font-weight-bold">Rating: {{ fb.rating || 5 }}/5</span>
-              </div>
-              <div class="text-body-2 mt-1">{{ fb.comment }}</div>
-            </div>
-          </div>
-          <div v-else class="text-grey text-caption">no feedback</div>
-
-          <v-divider class="my-4"></v-divider>
-
-          <div class="text-subtitle-2 font-weight-bold mb-2 text-teal-darken-3">ADMIN APPROVAL</div>
-          <div class="d-flex align-center" style="gap: 12px;">
-            <v-chip size="small" variant="flat" :color="getApprovalColor(viewItem.approval_status)" label class="font-weight-bold text-white">
-              {{ viewItem.approval_status || 'Pending Review' }}
-            </v-chip>
-            <span class="text-caption text-grey" v-if="viewItem.approved_at">
-              decided {{ formatDateTime(viewItem.approved_at) }}
-            </span>
-          </div>
-        </v-card-text>
-
-        <v-card-actions class="pa-4 border-t bg-slate-50">
-          <v-btn
-            color="red-darken-1"
-            variant="tonal"
-            class="text-capitalize font-weight-bold rounded-lg"
-            :loading="approving"
-            @click="approveTestCase(viewItem, false)"
-          >
-            Not Approve
-          </v-btn>
-          <v-btn
-            color="green-darken-1"
-            variant="tonal"
-            class="text-capitalize font-weight-bold rounded-lg"
-            :loading="approving"
-            @click="approveTestCase(viewItem, true)"
-          >
-            Approve
-          </v-btn>
-          <v-spacer></v-spacer>
-          <v-btn color="#0f766e" variant="text" class="font-weight-bold" @click="viewDialog = false">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-  
     <v-dialog v-model="usersDialog" max-width="640" scrollable>
       <v-card class="rounded-xl overflow-hidden">
         <v-card-title class="d-flex align-center pa-4 text-white dialog-header">
@@ -808,9 +671,17 @@ const getCycleNameOrEmpty = (cycleId) => {
 }
 
 // Cycle picked from list OR typed manually; Version Tag follows the name
+// Newest cycle = highest id (prefers an Active one; falls back to any)
+const newestOf = (list) => list.reduce((best, c) => (!best || Number(c.id) > Number(best.id) ? c : best), null)
+const latestCycle = computed(() => {
+  const active = testCycles.value.filter(c => (c.status || 'Active') === 'Active')
+  return newestOf(active) || newestOf(testCycles.value)
+})
+
 const onCycleChange = (val) => {
   const name = (typeof val === 'string' ? val : '').trim()
-  const match = testCycles.value.find(c => (c.name || '').toLowerCase() === name.toLowerCase())
+  // several cycles can share a name -> always pick the newest one, never the old one
+  const match = newestOf(testCycles.value.filter(c => (c.name || '').toLowerCase() === name.toLowerCase()))
   form.value.cycleId = match ? match.id : null
   form.value.versionTag = match ? match.name : name
 }
@@ -860,11 +731,8 @@ const priorityFilter = ref('All')
 const cycleFilter = ref('All')
 const mainTab = ref(route.query.tab === 'cycles' ? 'cycles' : 'cases')
 const dialog = ref(false)
-const approving = ref(false)
 const isEdit = ref(false)
 const activeTab = ref('header')
-const viewDialog = ref(false)
-const viewItem = ref(null)
 
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
@@ -942,6 +810,12 @@ const filteredTestCases = computed(() => {
     const matchesCycle = cycleFilter.value === 'All' || String(tc.cycle_id) === String(cycleFilter.value)
 
     return matchesSearch && matchesStatus && matchesPriority && matchesCycle
+  }).slice().sort((a, b) => {
+    // by Test Case ID (TC + YYMMDD + running no.), oldest/first created on top
+    const ka = a.test_case_code || ''
+    const kb = b.test_case_code || ''
+    if (ka && kb && ka !== kb) return ka.localeCompare(kb)
+    return Number(a.id) - Number(b.id)
   })
 })
 
@@ -997,10 +871,10 @@ const openCreateDialog = () => {
     title: '',
     testCaseId: newCode,
     testDepartment: '',
-    versionTag: '',
+    versionTag: latestCycle.value ? latestCycle.value.name : '',
     module: '',
-    cycleId: null,
-    cycleInput: '',
+    cycleId: latestCycle.value ? latestCycle.value.id : null,
+    cycleInput: latestCycle.value ? latestCycle.value.name : '',
     priority: 'Medium',
     status: 'Draft',
     testDescription: '',
@@ -1236,37 +1110,8 @@ const averageRating = (feedbacks) => {
   return (sum / feedbacks.length).toFixed(1)
 }
 
-const openViewDialog = (item) => {
-  viewItem.value = JSON.parse(JSON.stringify(item))
-  viewDialog.value = true
-}
-
-const approveTestCase = async (item, approved) => {
-  if (!item) return
-  approving.value = true
-  try {
-    const adminId = Number(localStorage.getItem('uat_user_id')) || null
-    const response = await fetch(`https://localhost:7049/api/TestCases/${item.id}/approve`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approved, approvedBy: adminId }),
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      viewItem.value.approval_status = result.approval_status
-      viewItem.value.approved_at = result.approved_at
-      await fetchFromAPI()
-    } else {
-      alert('Failed to update approval status.')
-    }
-  } catch (error) {
-    console.error('Error updating approval:', error)
-    alert('Error: Cannot connect to the API.')
-  } finally {
-    approving.value = false
-  }
-}
+// Test case details now open on their own page instead of a popup
+const openViewPage = (item) => router.push({ name: 'TestCaseDetail', params: { id: item.id } })
 
 const getPriorityColor = (p) => {
   if (p === 'Critical') return '#e11d48'
@@ -1575,8 +1420,10 @@ const fetchCycles = async () => {
     if (!cycleRes.ok) throw new Error('HTTP ' + cycleRes.status)
 
     const data = await cycleRes.json()
+    // Keep every cycle (several cycles can share a Version Tag name, e.g. a new "v1.5.0 Production");
+    // only drop true duplicates by id
     testCycles.value = (Array.isArray(data) ? data : []).filter((item, index, self) =>
-      item && item.name && index === self.findIndex((t) => t.name === item.name)
+      item && item.name && index === self.findIndex((t) => t.id === item.id)
     )
   }
   catch (err) {
@@ -1632,11 +1479,11 @@ onMounted(async () => {
 .page-heading {
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #0f172a;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .page-subheading {
-  color: #475569;
+  color: rgba(var(--v-theme-on-surface), 0.7);
   font-size: 0.875rem;
   margin-top: 2px;
 }
@@ -1652,7 +1499,7 @@ onMounted(async () => {
 
 
 .id-text {
-  color: #0f172a;
+  color: rgb(var(--v-theme-on-surface));
   font-size: 12px;
   letter-spacing: 0.3px;
   white-space: nowrap;
@@ -1660,16 +1507,16 @@ onMounted(async () => {
 
 .test-title-text {
   font-size: 14px;
-  color: #0f172a;
+  color: rgb(var(--v-theme-on-surface));
   line-height: 1.3;
 }
 
 .dept-tag {
-  background-color: #f1f5f9;
-  color: #334155;
+  background-color: rgba(var(--v-theme-on-surface), 0.05);
+  color: rgb(var(--v-theme-on-surface));
   padding: 3px 8px;
   border-radius: 6px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 
@@ -1687,11 +1534,11 @@ onMounted(async () => {
 
 .test-case-row {
   transition: all 0.2s ease;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .test-case-row:hover {
-  background-color: #f0fdfa !important;
+  background-color: rgba(15, 118, 110, 0.1) !important;
   transform: translateY(-1px);
 }
 
@@ -1701,16 +1548,16 @@ onMounted(async () => {
 
 
 .filter-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, rgb(var(--v-theme-surface)) 0%, rgba(var(--v-theme-on-surface), 0.05) 100%);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .main-table-card {
-  border: 1px solid #cbd5e1;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .bg-slate-50 {
-  background-color: #f8fafc;
+  background-color: rgba(var(--v-theme-on-surface), 0.05);
 }
 
 
@@ -1747,7 +1594,7 @@ onMounted(async () => {
 }
 
 .testmo-props-col {
-  border-left: 1px solid #e2e8f0;
+  border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   padding-left: 20px;
   display: flex;
   flex-direction: column;
@@ -1764,14 +1611,14 @@ onMounted(async () => {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #94a3b8;
+  color: rgba(var(--v-theme-on-surface), 0.5);
   font-weight: 700;
 }
 
 
 .step-box {
-  border: 1px solid #ccfbf1;
-  background-color: #f0fdfa;
+  border: 1px solid rgba(15, 118, 110, 0.3);
+  background-color: rgba(15, 118, 110, 0.1);
 }
 
 .btn-glow {
@@ -1791,23 +1638,23 @@ onMounted(async () => {
 }
 
 .border-b {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .border-t {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .text-grey-italic {
-  color: #94a3b8;
+  color: rgba(var(--v-theme-on-surface), 0.5);
   font-style: italic;
 }
 
 
 .expand-panel {
-  background: linear-gradient(180deg, #f0fdfa 0%, #f8fafc 100%);
-  border-top: 2px dashed #3b1235;
-  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.1) 0%, rgba(var(--v-theme-on-surface), 0.05) 100%);
+  border-top: 2px dashed rgba(217, 70, 239, 0.45);
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   padding: 20px 24px;
 }
 
@@ -1825,7 +1672,7 @@ onMounted(async () => {
   gap: 6px;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--acc-teal, #0f766e);
 }
 
 .flow-bar-icon {
@@ -1859,7 +1706,7 @@ onMounted(async () => {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #760f50;
+  color: var(--acc-purple, #760f50);
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -1867,7 +1714,7 @@ onMounted(async () => {
 .expand-case-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #0f172a;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 
@@ -1878,17 +1725,17 @@ onMounted(async () => {
 }
 
 .test-run-card {
-  background-color: #ffffff !important;
+  background-color: rgb(var(--v-theme-surface)) !important;
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border: 1px solid #cbd5e1 !important;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
   box-shadow: 0 2px 6px rgba(0,0,0,0.04);
 }
 
 .test-run-card-header {
-  color: #0f172a;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .test-run-card-body {
@@ -1907,13 +1754,13 @@ onMounted(async () => {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: rgba(var(--v-theme-on-surface), 0.7);
   font-weight: 700;
 }
 
 .test-run-value {
   font-size: 0.8rem;
-  color: #0f172a;
+  color: rgb(var(--v-theme-on-surface));
   font-weight: 600;
 }
 
@@ -1925,5 +1772,18 @@ onMounted(async () => {
 .test-run-card-action {
   margin-top: auto;
   text-transform: none;
+}
+
+/* Solid, always-readable Save button (was washing out to pale mint) */
+.save-btn {
+  background-color: #0f766e !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+.save-btn:hover { background-color: #0d5f59 !important; }
+.save-btn.v-btn--disabled {
+  background-color: #0f766e !important;
+  color: #ffffff !important;
+  opacity: 0.65 !important;
 }
 </style>
