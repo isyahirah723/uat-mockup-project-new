@@ -97,18 +97,41 @@
           <div class="card-title">Attachments ({{ attachments.length }})</div>
           <div class="att-list">
             <template v-for="a in attachments" :key="a.id">
-              <a v-if="a.is_image" :href="a.url" target="_blank" rel="noopener" class="att-thumb" :title="a.file_name">
+              <button v-if="a.is_image" type="button" class="att-thumb" :title="a.file_name" @click="openAttachment(a)">
                 <img :src="a.url" :alt="a.file_name" />
-              </a>
-              <a v-else :href="a.url" target="_blank" rel="noopener" class="att-file">
+              </button>
+              <button v-else type="button" class="att-file" @click="openAttachment(a)">
                 <v-icon size="14">mdi-paperclip</v-icon> {{ a.file_name }}
-              </a>
+              </button>
             </template>
           </div>
         </div>
 
       </template>
     </div>
+
+    <v-dialog v-model="attachmentDialog" max-width="1100" scrollable>
+      <v-card v-if="selectedAttachment" class="attachment-dialog">
+        <v-card-title class="d-flex align-center justify-space-between ga-2">
+          <span class="text-truncate">{{ selectedAttachment.file_name }}</span>
+          <v-btn icon="mdi-close" variant="text" aria-label="Close attachment preview" @click="attachmentDialog = false" />
+        </v-card-title>
+        <v-card-text class="attachment-preview">
+          <img
+            v-if="selectedAttachment.is_image"
+            :src="selectedAttachment.url"
+            :alt="selectedAttachment.file_name"
+            class="attachment-preview-image"
+          />
+          <iframe
+            v-else
+            :src="selectedAttachment.url"
+            :title="selectedAttachment.file_name"
+            class="attachment-preview-frame"
+          />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -126,9 +149,15 @@ const loading = ref(true)
 const error = ref('')
 const defect = ref(null)
 const attachments = ref([])
+const attachmentDialog = ref(false)
+const selectedAttachment = ref(null)
 
 const goBack = () => router.push({ name: 'Feedback' })
 const formatDateTime = (d) => (d ? new Date(d).toLocaleString() : '-')
+const openAttachment = (attachment) => {
+  selectedAttachment.value = attachment
+  attachmentDialog.value = true
+}
 
 const severityColor = (severity) => {
   switch (severity) {
@@ -200,10 +229,14 @@ onMounted(async () => {
 .text-block { font-size: 0.92rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .att-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.att-thumb { padding: 0; border: 0; background: transparent; cursor: pointer; }
 .att-thumb img { height: 140px; max-width: 260px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); background: rgb(var(--v-theme-surface)); display: block; }
 .att-file {
   display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 600;
-  color: var(--acc-purple, #760f6f); background: rgb(var(--v-theme-surface)); border: 1px solid rgba(168, 85, 247, 0.30); border-radius: 6px; padding: 5px 12px; text-decoration: none;
+  color: var(--acc-purple, #760f6f); background: rgb(var(--v-theme-surface)); border: 1px solid rgba(168, 85, 247, 0.30); border-radius: 6px; padding: 5px 12px; cursor: pointer;
 }
 .att-file:hover { background: rgba(168, 85, 247, 0.10); }
+.attachment-preview { display: flex; justify-content: center; padding: 16px; }
+.attachment-preview-image { display: block; max-width: 100%; max-height: 75vh; object-fit: contain; }
+.attachment-preview-frame { width: 100%; height: 75vh; border: 0; }
 </style>

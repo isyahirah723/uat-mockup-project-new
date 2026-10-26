@@ -125,6 +125,12 @@ namespace UAT_System_API.Controllers
         [HttpPost]
         public async Task<ActionResult<TestRuns>> PostRun(TestRuns run)
         {
+            if (!await _context.Users.AnyAsync(u => u.id == run.executed_by))
+                return BadRequest($"User with ID {run.executed_by} does not exist. A test run must be executed by an existing user.");
+
+            if (!await _context.TestCases.AnyAsync(t => t.id == run.test_case_id))
+                return BadRequest($"Test case with ID {run.test_case_id} does not exist.");
+
             
             if (run.test_assignment_id != null)
             {

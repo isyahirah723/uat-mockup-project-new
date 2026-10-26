@@ -44,7 +44,18 @@ app.UseHttpsRedirection();
 
 
 app.UseCors("AllowFrontend");
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Uploaded files are read by the Vue app with fetch() to embed them in the PDF report.
+        // Always send the header (not only when an Origin header is present): the browser first
+        // loads the same image through an <img> tag, which sends no Origin, and caches that
+        // response. Without this header the cached copy later makes fetch() fail with a CORS error.
+        // Restrict this to the real frontend origin when deploying.
+        ctx.Context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+    }
+});
 
 app.UseAuthorization();
 app.MapControllers();

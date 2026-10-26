@@ -23,6 +23,7 @@ namespace UAT_System_API.Controllers
             return user?.full_name ?? userId.Value.ToString();
         }
 
+        // GET: api/TestCases
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TestCases>>> GetTestCases()
         {
@@ -32,6 +33,7 @@ namespace UAT_System_API.Controllers
                 .ToListAsync();
         }
 
+        // GET: api/TestCases/5
         [HttpGet("{id}")]
         public async Task<ActionResult<TestCases>> GetTestCase(int id)
         {
@@ -48,88 +50,91 @@ namespace UAT_System_API.Controllers
             return testCase;
         }
 
-       [HttpPost]
-public async Task<ActionResult<TestCases>> PostTestCases([FromBody] TestCases testCase)
-{
-    if (!ModelState.IsValid)
-    {
-        return BadRequest(ModelState);
-    }
-
-    // Automatik tetapkan atau semak 'created_by' untuk elak Foreign Key violation
-    if (!testCase.created_by.HasValue || testCase.created_by.Value <= 0)
-    {
-        var defaultUser = await _context.Users.FirstOrDefaultAsync();
-        if (defaultUser != null)
+        // POST: api/TestCases
+        [HttpPost]
+        public async Task<ActionResult<TestCases>> PostTestCases([FromBody] TestCases testCase)
         {
-            testCase.created_by = defaultUser.id; // Ambil ID user pertama yang wujud dalam DB
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            // Pastikan 'created_by' wujud untuk elak Foreign Key violation
+            if (!testCase.created_by.HasValue || testCase.created_by.Value <= 0)
+            {
+                var defaultUser = await _context.Users.FirstOrDefaultAsync();
+                if (defaultUser != null)
+                {
+                    testCase.created_by = defaultUser.id;
+                }
+                else
+                {
+                    return BadRequest(new { message = "Tiada sebarang rekod User di dalam pangkalan data. Sila masukkan sekurang-kurangnya satu user." });
+                }
+            }
+            else
+            {
+                var userExists = await _context.Users.AnyAsync(u => u.id == testCase.created_by.Value);
+                if (!userExists)
+                {
+                    return BadRequest(new { message = $"User dengan ID {testCase.created_by} tidak wujud dalam pangkalan data." });
+                }
+            }
+
+            if (testCase.cycle_id <= 0)
+            {
+                testCase.cycle_id = null;
+            }
+
+            if (string.IsNullOrWhiteSpace(testCase.test_case_code))
+            {
+                var count = await _context.TestCases.CountAsync();
+                testCase.test_case_code = "TC-" + (count + 1).ToString("000");
+
+                while (await _context.TestCases.AnyAsync(t => t.test_case_code == testCase.test_case_code))
+                {
+                    count++;
+                    testCase.test_case_code = "TC-" + (count + 1).ToString("000");
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(testCase.test_number))
+            {
+                var datePart = DateTime.Now.ToString("yyyyMMdd");
+                var prefix = $"TN-{datePart}-";
+
+                var todayCount = await _context.TestCases
+                    .CountAsync(t => t.test_number != null && t.test_number.StartsWith(prefix));
+
+                testCase.test_number = prefix + (todayCount + 1).ToString("000");
+
+                while (await _context.TestCases.AnyAsync(t => t.test_number == testCase.test_number))
+                {
+                    todayCount++;
+                    testCase.test_number = prefix + (todayCount + 1).ToString("000");
+                }
+            }
+
+            _context.TestCases.Add(testCase);
+            await _context.SaveChangesAsync();
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                RunId = testCase.test_case_code,
+                Action = "CREATE",
+                StatusOld = null,
+                StatusNew = testCase.status,
+                Title = testCase.title,
+                Details = "Test case created",
+                CrtUserId = await ResolveUserName(testCase.created_by),
+                DtCreated = DateTime.Now
+            });
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetTestCase), new { id = testCase.id }, testCase);
         }
-        else
-        {
-            return BadRequest(new { message = "Tiada sebarang rekod User di dalam pangkalan data. Sila masukkan sekurang-kurangnya satu user." });
-        }
-    }
-    else
-    {
-        var userExists = await _context.Users.AnyAsync(u => u.id == testCase.created_by.Value);
-        if (!userExists)
-        {
-            return BadRequest(new { message = $"User dengan ID {testCase.created_by} tidak wujud dalam pangkalan data." });
-        }
-    }
 
-    if (testCase.cycle_id <= 0)
-    {
-        testCase.cycle_id = null;
-    }
-
-    if (string.IsNullOrWhiteSpace(testCase.test_case_code))
-    {
-        var count = await _context.TestCases.CountAsync();
-        testCase.test_case_code = "TC-" + (count + 1).ToString("000");
-
-        while (await _context.TestCases.AnyAsync(t => t.test_case_code == testCase.test_case_code))
-        {
-            count++;
-            testCase.test_case_code = "TC-" + (count + 1).ToString("000");
-        }
-    }
-
-    if (string.IsNullOrWhiteSpace(testCase.test_number))
-    {
-        var datePart = DateTime.Now.ToString("yyyyMMdd");
-        var prefix = $"TN-{datePart}-";
-
-        var todayCount = await _context.TestCases
-            .CountAsync(t => t.test_number != null && t.test_number.StartsWith(prefix));
-
-        testCase.test_number = prefix + (todayCount + 1).ToString("000");
-
-        while (await _context.TestCases.AnyAsync(t => t.test_number == testCase.test_number))
-        {
-            todayCount++;
-            testCase.test_number = prefix + (todayCount + 1).ToString("000");
-        }
-    }
-
-    _context.TestCases.Add(testCase);
-    await _context.SaveChangesAsync();
-
-    _context.AuditLogs.Add(new AuditLog
-    {
-        RunId = testCase.test_case_code,
-        Action = "CREATE",
-        StatusOld = null,
-        StatusNew = testCase.status,
-        Title = testCase.title,
-        Details = "Test case created",
-        CrtUserId = await ResolveUserName(testCase.created_by),
-        DtCreated = DateTime.Now
-    });
-    await _context.SaveChangesAsync();
-
-    return CreatedAtAction(nameof(GetTestCase), new { id = testCase.id }, testCase);
-}
+        // PUT: api/TestCases/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTestCases(int id, [FromBody] TestCases testCase)
         {
@@ -231,6 +236,8 @@ public async Task<ActionResult<TestCases>> PostTestCases([FromBody] TestCases te
             return Ok(existingTestCase);
         }
 
+        // PATCH: api/TestCases/5/approve
+        // Hanya ubah medan approval. Medan 'status' (Draft/Passed/...) TIDAK disentuh.
         [HttpPatch("{id}/approve")]
         public async Task<IActionResult> SetApproval(int id, [FromBody] ApprovalRequest request)
         {
@@ -265,6 +272,7 @@ public async Task<ActionResult<TestCases>> PostTestCases([FromBody] TestCases te
             return Ok(new { testCase.id, testCase.approval_status, testCase.approved_by, testCase.approved_at });
         }
 
+        // DELETE: api/TestCases/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTestCases(int id)
         {

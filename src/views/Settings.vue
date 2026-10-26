@@ -174,25 +174,6 @@
             </div>
 
             
-            <div v-else-if="activeMenu === 'darkmode'">
-              <div class="text-h6 font-weight-bold mb-4">Appearance / Theme</div>
-              <v-row>
-                <v-col cols="12">
-                  <v-switch
-                    v-model="isDarkMode"
-                    label="Enable Dark Theme"
-                    color="primary"
-                    inset
-                    @update:model-value="toggleDarkMode"
-                  ></v-switch>
-                  <div class="text-caption text-grey mt-2">
-                    {{ isDarkMode ? '🌙 Dark mode is active across all pages' : '☀️ Light mode is active across all pages' }}
-                  </div>
-                </v-col>
-              </v-row>
-            </div>
-
-           
             <div v-else-if="activeMenu === 'profile'">
               <div class="text-h6 font-weight-bold mb-4">User Profile</div>
               
@@ -436,7 +417,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
@@ -461,35 +442,9 @@ function readSavedSettings() {
 }
 
 const savedData = readSavedSettings()
-const isDarkMode = ref(savedData.darkMode ?? false)
-
-
-watch(isDarkMode, (newVal) => {
-  const settings = readSavedSettings()
-  settings.darkMode = newVal
-  localStorage.setItem('userSettings', JSON.stringify(settings))
-
-  if (typeof window.__toggleTheme === 'function') {
-    window.__toggleTheme(newVal)
-  }
-}, { immediate: true })
-
-
-const toggleDarkMode = (val) => {
-  isDarkMode.value = val
-  showNotification(
-    val ? '🌙 Dark Mode Enabled' : '☀️ Light Mode Enabled',
-    val ? 'Dark theme is now active across all pages' : 'Light theme is now active across all pages',
-    'primary',
-    val ? 'moon-waning-crescent' : 'weather-sunny'
-  )
-}
-
-
 const menuItems = [
   { title: 'General', value: 'general', icon: 'mdi-cog' },
   { title: 'Email Notifications', value: 'email', icon: 'mdi-email-outline' },
-  { title: 'Dark Mode', value: 'darkmode', icon: 'mdi-theme-light-dark' },
   { title: 'Profile', value: 'profile', icon: 'mdi-account' },
   { title: 'Audit Log', value: 'audit', icon: 'mdi-history' }
 ]
@@ -676,7 +631,7 @@ const saveAllSettings = async () => {
   const allSettings = {
     general: generalSettings,
     email: emailSettings,
-    darkMode: isDarkMode.value,
+    darkMode: readSavedSettings().darkMode ?? false,
     profile: profileSettings,
     audit: auditSettings
   }

@@ -7,24 +7,27 @@
       :style="drawerStyle" 
       class="text-white"
       width="260"
+      :rail="rail"
+      rail-width="64"
     >
-      <div class="d-flex align-center pa-4 sidebar-header">
-        <div class="sidebar-logo d-flex align-center justify-center mr-3">
+      <div class="d-flex align-center sidebar-header" :class="rail ? 'justify-center pa-3' : 'pa-4'">
+        <div class="sidebar-logo d-flex align-center justify-center" :class="{ 'mr-3': !rail }">
           <v-icon color="white" size="20">mdi-clipboard-check-outline</v-icon>
         </div>
-        <div>
+        <div v-if="!rail">
           <div class="text-subtitle-1 font-weight-bold" style="line-height: 1.1;">UAT TESTING</div>
           <div class="text-caption sidebar-subtitle">Test Management</div>
         </div>
       </div>
 
       <v-list density="compact" nav class="mt-2 px-2">
-        <div class="sidebar-eyebrow">WORKSPACE</div>
+        <div v-if="!rail" class="sidebar-eyebrow">WORKSPACE</div>
         <v-list-item prepend-icon="mdi-view-dashboard" title="Dashboard" to="/" exact value="dashboard" class="sidebar-item rounded-lg mb-1"></v-list-item>
         <v-list-item prepend-icon="mdi-format-list-checks" title="Test Cases" to="/test-cases" value="testcases" class="sidebar-item rounded-lg mb-1"></v-list-item>
         <v-list-item prepend-icon="mdi-comment-text-multiple-outline" title="Feedback" to="/feedback" value="feedback" class="sidebar-item rounded-lg mb-1"></v-list-item>
 
-        <div class="sidebar-eyebrow mt-4">SYSTEM</div>
+        <div v-if="!rail" class="sidebar-eyebrow mt-4">SYSTEM</div>
+        <v-divider v-else class="my-3 sidebar-divider"></v-divider>
         <v-list-item prepend-icon="mdi-history" title="Audit Log" to="/audit-log" value="auditlog" class="sidebar-item rounded-lg mb-1"></v-list-item>
         <v-list-item prepend-icon="mdi-book-open-page-variant-outline" title="User Guide" to="/user-guide" value="userguide" class="sidebar-item rounded-lg mb-1"></v-list-item>
         <v-list-item prepend-icon="mdi-cog" title="Settings" to="/settings" value="settings" class="sidebar-item rounded-lg mb-1"></v-list-item>
@@ -34,8 +37,18 @@
 
     
     <v-app-bar app flat border-b>
-      <v-app-bar-nav-icon @click="drawer = !drawer"></v-app-bar-nav-icon>
+      <v-app-bar-nav-icon @click="toggleSidebar"></v-app-bar-nav-icon>
       <v-app-bar-title class="font-weight-bold">UAT Management System</v-app-bar-title>
+      <v-spacer></v-spacer>
+      <v-btn
+        icon
+        variant="text"
+        class="theme-toggle-btn mr-2"
+        :aria-label="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+        @click="toggleTheme"
+      >
+        <v-icon>{{ isDark ? 'mdi-white-balance-sunny' : 'mdi-weather-night' }}</v-icon>
+      </v-btn>
     </v-app-bar>
 
     
@@ -47,8 +60,20 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useDisplay } from 'vuetify'
 
 const drawer = ref(true)
+const rail = ref(false)
+const { mdAndUp } = useDisplay()
+
+// Desktop: kecilkan sidebar jadi icon sahaja. Mobile: buka/tutup drawer macam biasa.
+const toggleSidebar = () => {
+  if (mdAndUp.value) {
+    rail.value = !rail.value
+  } else {
+    drawer.value = !drawer.value
+  }
+}
 const themeName = ref('light')
 
 
@@ -65,8 +90,20 @@ onMounted(() => {
 })
 
 
-window.__toggleTheme = (isDark) => {
-  themeName.value = isDark ? 'dark' : 'light'
+const isDark = computed(() => themeName.value === 'dark')
+
+const toggleTheme = () => {
+  themeName.value = isDark.value ? 'light' : 'dark'
+
+  // simpan pilihan supaya kekal lepas refresh
+  let settings = {}
+  try {
+    settings = JSON.parse(localStorage.getItem('userSettings') || '{}') || {}
+  } catch (e) {
+    settings = {}
+  }
+  settings.darkMode = themeName.value === 'dark'
+  localStorage.setItem('userSettings', JSON.stringify(settings))
 }
 
 
@@ -102,6 +139,25 @@ const mainStyle = computed(() => {
   background: linear-gradient(135deg, #7a1a8c 0%, #d125c9 100%);
   box-shadow: 0 3px 10px rgba(171, 31, 174, 0.45);
   flex-shrink: 0;
+}
+
+.theme-toggle-btn {
+  background: transparent !important;
+  box-shadow: none !important;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+.theme-toggle-btn:hover {
+  opacity: 1;
+}
+.theme-toggle-btn :deep(.v-btn__overlay),
+.theme-toggle-btn :deep(.v-btn__underlay) {
+  display: none;
+}
+
+.sidebar-divider {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  opacity: 1;
 }
 
 .sidebar-subtitle {

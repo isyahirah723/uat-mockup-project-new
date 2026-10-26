@@ -50,6 +50,10 @@
               <div class="info-value">{{ cycle.department || '-' }}</div>
             </div>
             <div class="info-item">
+              <div class="info-label">Project</div>
+              <div class="info-value">{{ cycle.project || '-' }}</div>
+            </div>
+            <div class="info-item">
               <div class="info-label">Start Date</div>
               <div class="info-value">{{ formatDate(cycle.dt_start) }}</div>
             </div>
@@ -76,25 +80,50 @@
           </div>
         </div>
 
-        <!-- Progress -->
+        <!-- Cycle result (decided by critical test cases, not just the percentage) -->
         <div class="card mb-5">
-          <div class="card-title">Progress</div>
+          <div class="card-title">Cycle Result</div>
           <div v-if="cases.length === 0" class="text-caption text-grey">No test cases in this cycle yet.</div>
           <div v-else>
-            <div class="d-flex align-center justify-space-between mb-2">
-              <div class="progress-text">
-                <span class="font-weight-bold">{{ progress.passed }} / {{ progress.total }}</span> Passed
-                <span v-if="progress.failed > 0" class="text-red-darken-1"> · {{ progress.failed }} Failed</span>
-              </div>
-              <div class="progress-pct">{{ progress.pct }}%</div>
+            <div class="d-flex align-center flex-wrap mb-3" style="gap: 12px;">
+              <v-chip :color="verdictColor(ev.verdict)" variant="flat" label class="font-weight-bold text-white px-4">
+                <v-icon start size="18">{{ ev.verdict === 'Passed' ? 'mdi-check-circle-outline' : ev.verdict === 'Failed' ? 'mdi-close-circle-outline' : 'mdi-clock-outline' }}</v-icon>
+                {{ ev.verdict }}
+              </v-chip>
+              <div class="verdict-note">{{ verdictNote }}</div>
             </div>
+
+            <div class="metric-grid mb-4">
+              <div class="metric">
+                <div class="info-label">Critical test cases</div>
+                <div class="metric-value">
+                  <template v-if="ev.critical.total">{{ ev.critical.passed }} / {{ ev.critical.total }} passed</template>
+                  <template v-else>None set</template>
+                </div>
+                <div v-if="ev.critical.failed" class="text-caption text-red-darken-1">{{ ev.critical.failed }} failed</div>
+              </div>
+              <div class="metric">
+                <div class="info-label">All test cases</div>
+                <div class="metric-value">{{ ev.passed }} / {{ ev.total }} passed</div>
+                <div v-if="ev.failed" class="text-caption text-red-darken-1">{{ ev.failed }} failed</div>
+              </div>
+              <div class="metric">
+                <div class="info-label">Pass rate (for reference)</div>
+                <div class="metric-value">{{ ev.pct }}%</div>
+              </div>
+            </div>
+
             <v-progress-linear
-              :model-value="progress.pct"
-              color="#0f766e"
+              :model-value="ev.pct"
+              :color="verdictColor(ev.verdict) === 'error' ? 'red-darken-1' : '#0f766e'"
               bg-color="grey-lighten-2"
               height="8"
               rounded
             />
+
+            <v-alert v-if="ev.nonCriticalFailed > 0 && ev.critical.total" type="warning" variant="tonal" density="compact" class="mt-4 rounded-lg">
+              {{ ev.nonCriticalFailed }} non-critical test case{{ ev.nonCriticalFailed === 1 ? '' : 's' }} failed. This does not stop the cycle from passing, but should be reviewed.
+            </v-alert>
           </div>
         </div>
 
@@ -108,7 +137,7 @@
                 <th>ID</th>
                 <th>TITLE</th>
                 <th>PRIORITY</th>
-                <th>STATUS</th>
+                <th>RESULT</th>
                 <th class="text-center" style="width: 90px;">RUNS</th>
               </tr>
             </thead>
@@ -116,10 +145,13 @@
               <tr v-for="tc in cases" :key="tc.id">
                 <td class="id-text font-weight-bold text-no-wrap">{{ tc.test_case_code || tc.id }}</td>
                 <td>{{ tc.title }}</td>
-                <td>{{ tc.priority || 'Medium' }}</td>
                 <td>
-                  <v-chip size="x-small" label variant="tonal" :color="caseStatusColor(tc.status)" class="font-weight-bold">
-                    {{ tc.status || 'Draft' }}
+                  <v-chip v-if="isCritical(tc)" size="x-small" label variant="flat" color="red-darken-1" class="font-weight-bold text-white">Critical</v-chip>
+                  <span v-else>{{ tc.priority || 'Medium' }}</span>
+                </td>
+                <td>
+                  <v-chip size="x-small" label variant="tonal" :color="caseResultColor(ev.results[tc.id])" class="font-weight-bold">
+                    {{ ev.results[tc.id] || 'Not Run' }}
                   </v-chip>
                 </td>
                 <td class="text-center">
@@ -148,6 +180,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { evaluateCycle, isCritical, verdictColor, caseResultColor } from '@/utils/cycleResult'
 
 const API = 'https://localhost:7049/api'
 const route = useRoute()
@@ -159,6 +192,7 @@ const error = ref('')
 const cycle = ref(null)
 const cases = ref([])
 const users = ref([])
+const runs = ref([])
 
 const goBack = () => router.push({ path: '/test-cases', query: { tab: 'cycles' } })
 const openRuns = (tc) => router.push({ name: 'TestCaseRuns', params: { id: tc.id } })
@@ -183,26 +217,28 @@ const statusColor = (st) => {
   if (st === 'Closed' || st === 'Archived') return 'grey'
   return 'primary'
 }
-const caseStatusColor = (st) => {
-  if (st === 'Passed') return 'success'
-  if (st === 'Failed') return 'error'
-  if (st === 'Pending') return 'warning'
-  return 'grey'
-}
+const ev = computed(() => evaluateCycle(cases.value, runs.value))
 
-const progress = computed(() => {
-  const total = cases.value.length
-  const passed = cases.value.filter((tc) => tc.status === 'Passed').length
-  const failed = cases.value.filter((tc) => tc.status === 'Failed').length
-  return { total, passed, failed, pct: total ? Math.round((passed / total) * 100) : 0 }
+const verdictNote = computed(() => {
+  const e = ev.value
+  if (!e.total) return ''
+  if (e.basis === 'critical') {
+    if (e.verdict === 'Failed') return `Failed because ${e.critical.failed} critical test case${e.critical.failed === 1 ? '' : 's'} failed, regardless of the ${e.pct}% overall pass rate.`
+    if (e.verdict === 'Passed') return 'All critical test cases passed.'
+    return `Waiting for ${e.critical.pending} critical test case${e.critical.pending === 1 ? '' : 's'} to be run or passed.`
+  }
+  if (e.verdict === 'Failed') return 'No test case is marked Critical, so any failed test case fails the cycle.'
+  if (e.verdict === 'Passed') return 'No test case is marked Critical. All test cases passed.'
+  return 'No test case is marked Critical. Waiting for the remaining test cases to be run.'
 })
 
 onMounted(async () => {
   try {
-    const [cyclesRes, casesRes, usersRes] = await Promise.all([
+    const [cyclesRes, casesRes, usersRes, runsRes] = await Promise.all([
       fetch(`${API}/TestCycles`),
       fetch(`${API}/TestCases`),
       fetch(`${API}/Users`),
+      fetch(`${API}/TestRuns`),
     ])
     if (!cyclesRes.ok) throw new Error('Failed to load test cycles')
     const allCycles = await cyclesRes.json()
@@ -211,6 +247,7 @@ onMounted(async () => {
     cycle.value = found
 
     users.value = usersRes.ok ? await usersRes.json() : []
+    runs.value = runsRes.ok ? await runsRes.json() : []
     const allCases = casesRes.ok ? await casesRes.json() : []
     cases.value = allCases.filter((tc) => String(tc.cycle_id) === String(cycleId))
   } catch (e) {
@@ -252,8 +289,9 @@ onMounted(async () => {
 .info-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.5); margin-bottom: 3px; }
 .info-value { font-size: 0.88rem; font-weight: 600; color: rgb(var(--v-theme-on-surface)); overflow-wrap: anywhere; }
 
-.progress-text { font-size: 0.88rem; color: rgba(var(--v-theme-on-surface), 0.7); }
-.progress-pct { font-size: 0.88rem; font-weight: 700; color: var(--acc-teal, #0f766e); }
+.verdict-note { font-size: 0.85rem; color: rgba(var(--v-theme-on-surface), 0.75); }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px 24px; }
+.metric-value { font-size: 1.05rem; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
 
 .id-text { color: rgb(var(--v-theme-on-surface)); }
 .case-table :deep(th) {

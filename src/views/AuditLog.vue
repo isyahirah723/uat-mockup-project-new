@@ -13,17 +13,6 @@
           </div>
         </div>
       </div>
-      <v-btn
-        color="#0f766e"
-        variant="flat"
-        size="small"
-        class="text-capitalize text-white font-weight-bold"
-        prepend-icon="mdi-refresh"
-        :loading="loading"
-        @click="refreshAll"
-      >
-        Refresh
-      </v-btn>
     </div>
 
     <!-- Filters + table -->
@@ -309,7 +298,7 @@ const userFilter = ref(null)
 const actionFilter = ref('All')
 const dateFilter = ref(60)
 
-const actionOptions = ['All', 'CREATE', 'UPDATE', 'DELETE']
+const actionOptions = ['All', 'RUN TEST', 'CREATE', 'UPDATE', 'DELETE']
 const dateOptions = [
   { title: 'Last 7 days', value: 7 },
   { title: 'Last 30 days', value: 30 },
@@ -366,8 +355,14 @@ const filteredLogs = computed(() => {
     ? Date.now() - dateFilter.value * 24 * 60 * 60 * 1000
     : null
 
-  return logs.value.filter((log) => {
-    if (actionFilter.value !== 'All' && log.action !== actionFilter.value) return false
+  // Newest first, always: do not rely on the order the API happens to return
+  const newestFirst = [...logs.value].sort((a, b) => {
+    const diff = (new Date(dateOf(b)).getTime() || 0) - (new Date(dateOf(a)).getTime() || 0)
+    return diff !== 0 ? diff : (b.id ?? b.Id ?? 0) - (a.id ?? a.Id ?? 0)
+  })
+
+  return newestFirst.filter((log) => {
+    if (actionFilter.value !== 'All' && actionKeyOf(log) !== actionFilter.value) return false
     if (userFilter.value && userOf(log) !== userFilter.value) return false
     if (cutoff) {
       const t = new Date(dateOf(log)).getTime()
@@ -423,6 +418,10 @@ const copyRunId = async () => {
 // Log feedback tester: statusOld kosong, statusNew ialah rating (1-5)
 const isFeedback = (log) =>
   !log.statusOld && /^[0-5]$/.test(String(log.statusNew ?? '').trim())
+
+// Action sebenar yang dipaparkan: log feedback tester (backend simpan sebagai CREATE) = RUN TEST
+const actionKeyOf = (log) =>
+  isFeedback(log) || String(log.action ?? '').toUpperCase() === 'RUN TEST' ? 'RUN TEST' : log.action
 
 // Module: log test case (admin create / update / delete) ikut module test case tu,
 // manakala log tester run test case sentiasa "UAT Run".
@@ -507,9 +506,9 @@ const formatAction = (action) =>
   action ? action.charAt(0) + action.slice(1).toLowerCase() : '-'
 
 // Log feedback tester dipaparkan sebagai "Run Test", bukan "Create"
-const actionColorOf = (log) => (isFeedback(log) ? 'orange-darken-2' : getActionColor(log.action))
-const actionIconOf = (log) => (isFeedback(log) ? 'mdi-play-circle-outline' : getActionIcon(log.action))
-const actionLabelOf = (log) => (isFeedback(log) ? 'Run Test' : formatAction(log.action))
+const actionColorOf = (log) => (actionKeyOf(log) === 'RUN TEST' ? 'orange-darken-2' : getActionColor(log.action))
+const actionIconOf = (log) => (actionKeyOf(log) === 'RUN TEST' ? 'mdi-play-circle-outline' : getActionIcon(log.action))
+const actionLabelOf = (log) => (actionKeyOf(log) === 'RUN TEST' ? 'Run Test' : formatAction(log.action))
 
 const initials = (name = '') => {
   const parts = String(name).trim().split(/\s+/).filter(Boolean)
@@ -541,15 +540,19 @@ const formatFull = (v) => {
 }
 
 
-const fetchLogs = async () => {
-  loading.value = true
+const lastUpdated = ref('')
+
+// silent = background refresh: no spinner on the button, so the table does not flicker
+const fetchLogs = async (silent = false) => {
+  if (!silent) loading.value = true
   try {
     const res = await auditLogService.getAll()
     logs.value = res.data
+    lastUpdated.value = new Date().toLocaleTimeString('en-GB')
   } catch (err) {
     console.error('Failed to load audit logs:', err)
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -576,7 +579,43 @@ const refreshAll = async () => {
   await Promise.all([fetchTestCases(), fetchTestCycles(), fetchLogs()])
 }
 
-onMounted(refreshAll)
+// ---------- auto refresh ----------
+const AUTO_REFRESH_MS = 30000
+const autoRefresh = true // runs silently in the background; set to false to turn it off
+let timer = null
+let busy = false
+
+const tick = async () => {
+  // skip while the tab is in the background or a refresh is already running
+  if (busy || document.hidden || !autoRefresh) return
+  busy = true
+  try {
+    await Promise.all([fetchTestCases(), fetchTestCycles(), fetchLogs(true)])
+  } finally {
+    busy = false
+  }
+}
+
+const startTimer = () => {
+  stopTimer()
+  timer = setInterval(tick, AUTO_REFRESH_MS)
+}
+const stopTimer = () => {
+  if (timer) clearInterval(timer)
+  timer = null
+}
+const onVisible = () => { if (!document.hidden && autoRefresh) tick() }
+
+
+onMounted(() => {
+  refreshAll()
+  startTimer()
+  document.addEventListener('visibilitychange', onVisible)
+})
+onBeforeUnmount(() => {
+  stopTimer()
+  document.removeEventListener('visibilitychange', onVisible)
+})
 </script>
 
 <style scoped>

@@ -396,26 +396,51 @@
           <div class="d-flex justify-space-between align-center mb-4">
             <div>
               <div class="text-subtitle-1 font-weight-bold">Recent Test Cases</div>
-              <div class="text-caption text-grey">Latest test cases and their assigned testers. Click a row for details</div>
+              <div class="text-caption text-grey">Latest test cases and their testers. Click a row for details</div>
             </div>
             <v-btn variant="text" color="primary" size="small" class="text-capitalize" @click="filterByStatus('All')">
               View All <v-icon size="small" class="ml-1">mdi-arrow-right</v-icon>
             </v-btn>
           </div>
+
+          <!-- Filters -->
+          <v-row dense align="center" class="mb-2">
+            <v-col cols="12" md="5">
+              <v-text-field
+                v-model="recentSearch"
+                label="Search ID, title or tester"
+                prepend-inner-icon="mdi-magnify"
+                variant="outlined"
+                density="compact"
+                clearable
+                hide-details
+              ></v-text-field>
+            </v-col>
+            <v-col cols="6" md="3">
+              <v-select v-model="recentPriority" :items="['All', ...priorityOptions]" label="Priority" variant="outlined" density="compact" hide-details></v-select>
+            </v-col>
+            <v-col cols="6" md="3">
+              <v-select v-model="recentCycle" :items="recentCycleOptions" item-title="title" item-value="value" label="Test Cycle" variant="outlined" density="compact" hide-details></v-select>
+            </v-col>
+            <v-col cols="12" md="1" class="d-flex justify-end">
+              <v-btn variant="text" size="small" class="text-capitalize" :disabled="!recentFiltersActive" @click="clearRecentFilters">Clear</v-btn>
+            </v-col>
+          </v-row>
+
           <v-table density="comfortable" style="background: transparent;">
             <thead>
               <tr>
                 <th class="text-grey font-weight-bold">ID / TITLE</th>
-                <th class="text-grey font-weight-bold">DEPT</th>
+                <th class="text-grey font-weight-bold">CYCLE</th>
                 <th class="text-grey font-weight-bold">PRIORITY</th>
-                <th class="text-grey font-weight-bold">STATUS</th>
+                <th class="text-grey font-weight-bold">RESULT</th>
                 <th class="text-grey font-weight-bold">TESTERS</th>
                 <th style="width: 32px;"></th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="item in recentCases"
+                v-for="item in pagedRecentCases"
                 :key="item.id"
                 class="clickable-row"
                 tabindex="0"
@@ -429,7 +454,7 @@
                   <div class="text-body-2 font-weight-medium">{{ item.title }}</div>
                 </td>
                 <td>
-                  <span class="text-caption font-weight-bold">{{ item.test_department || '-' }}</span>
+                  <span class="text-caption font-weight-bold">{{ cycleNameOf(item.cycle_id) }}</span>
                 </td>
                 <td>
                   <v-chip size="x-small" :color="getPriorityColor(item.priority)" label class="font-weight-bold">
@@ -437,30 +462,54 @@
                   </v-chip>
                 </td>
                 <td>
-                  <v-chip size="x-small" :color="getStatusColor(item.status)" label class="font-weight-bold">
-                    {{ item.status || 'Draft' }}
+                  <v-chip size="x-small" variant="tonal" :color="caseResultColor(resultOf(item.id))" label class="font-weight-bold">
+                    {{ resultOf(item.id) }}
                   </v-chip>
                 </td>
-                <td>
-                  <div v-if="testersFor(item.id).length" class="d-flex flex-column py-1" style="row-gap: 4px;">
-                    <div v-for="name in testersFor(item.id)" :key="name" class="d-flex align-center">
-                      <v-avatar color="primary" size="24" class="mr-2 text-white font-weight-bold" style="font-size: 10px;">
-                        {{ initialsOf(name) }}
-                      </v-avatar>
-                      <span class="text-body-2 font-weight-medium">{{ name }}</span>
-                    </div>
-                  </div>
+                <td class="tester-col">
+                  <!-- Many testers: first name with ellipsis + "+N"; hover shows everyone -->
+                  <v-tooltip v-if="testersFor(item.id).length" location="top" max-width="320">
+                    <template v-slot:activator="{ props }">
+                      <div v-bind="props" class="d-flex align-center tester-cell">
+                        <v-avatar color="primary" size="24" class="mr-2 text-white font-weight-bold flex-shrink-0" style="font-size: 10px;">
+                          {{ initialsOf(testersFor(item.id)[0]) }}
+                        </v-avatar>
+                        <span class="text-body-2 font-weight-medium tester-name">{{ testersFor(item.id)[0] }}</span>
+                        <v-chip v-if="testersFor(item.id).length > 1" size="x-small" label variant="tonal" color="primary" class="ml-2 font-weight-bold flex-shrink-0">
+                          +{{ testersFor(item.id).length - 1 }}
+                        </v-chip>
+                      </div>
+                    </template>
+                    <div v-for="name in testersFor(item.id)" :key="name">{{ name }}</div>
+                  </v-tooltip>
                   <span v-else class="text-caption text-grey">Not assigned</span>
                 </td>
                 <td><v-icon size="small" color="grey">mdi-chevron-right</v-icon></td>
               </tr>
-              <tr v-if="recentCases.length === 0">
+              <tr v-if="recentFiltered.length === 0">
                 <td colspan="6" class="text-center text-grey py-6">
-                  No test cases found. Click "New Test Case" to create one.
+                  {{ filteredCases.length === 0 ? 'No test cases found. Click "New Test Case" to create one.' : 'No test cases match your filters.' }}
                 </td>
               </tr>
             </tbody>
           </v-table>
+
+          <!-- Pagination -->
+          <div v-if="recentFiltered.length > 0" class="d-flex flex-wrap justify-space-between align-center pt-3" style="row-gap: 8px;">
+            <div class="text-caption text-grey">Showing {{ recentRangeStart }}-{{ recentRangeEnd }} of {{ recentFiltered.length }} test cases</div>
+            <div class="d-flex align-center" style="gap: 12px;">
+              <v-select
+                v-model="recentPageSize"
+                :items="[5, 10, 25, 50]"
+                label="Rows per page"
+                variant="outlined"
+                density="compact"
+                hide-details
+                style="width: 140px;"
+              ></v-select>
+              <v-pagination v-model="recentPage" :length="recentPageCount" :total-visible="5" density="compact"></v-pagination>
+            </div>
+          </div>
         </v-card>
       </v-col>
     </v-row>
@@ -674,9 +723,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { testCaseService } from '@/services/testCaseService'
+import { caseResult, caseResultColor } from '@/utils/cycleResult'
 
 const router = useRouter()
 const testCases = ref([])
@@ -807,9 +857,7 @@ const filteredCases = computed(() => {
 const filteredIds = computed(() => new Set(filteredCases.value.map((c) => c.id)))
 const caseById = computed(() => Object.fromEntries((testCases.value || []).map((c) => [c.id, c])))
 
-/* ------------------------------------------------------------------ */
-/* Summary numbers                                                     */
-/* ------------------------------------------------------------------ */
+
 const totalCases = computed(() => filteredCases.value.length)
 const passedCases = computed(() => filteredCases.value.filter(c => c.status === 'Passed').length)
 const failedCases = computed(() => filteredCases.value.filter(c => c.status === 'Failed').length)
@@ -839,9 +887,7 @@ const priorityCount = computed(() => {
   return counts
 })
 
-/* ------------------------------------------------------------------ */
-/* Runs, steps and defects (real data)                                 */
-/* ------------------------------------------------------------------ */
+
 const runs = ref([])
 const execSteps = ref([])
 const assignments = ref([])
@@ -862,7 +908,7 @@ const stepsByRun = computed(() => {
 
 const stepStatus = (s) => String(s.execution_status || s.status || '').toLowerCase()
 
-// 'pass' | 'fail' | 'pending'
+
 const runOutcome = (run) => {
   const st = stepsByRun.value[run.id] || []
   const rs = String(run.run_status || '').toLowerCase()
@@ -902,7 +948,7 @@ const runToRow = (x) => {
   }
 }
 
-// A defect is a step flagged as defect, or a step that failed.
+
 const defectList = computed(() => {
   const out = []
   const runMap = Object.fromEntries(runs.value.map((r) => [r.id, r]))
@@ -952,9 +998,7 @@ const priorityTableData = computed(() => {
   ]
 })
 
-/* ------------------------------------------------------------------ */
-/* Test Execution over time (SVG line chart)                           */
-/* ------------------------------------------------------------------ */
+
 const CHART = { w: 640, h: 180, l: 34, r: 14, t: 14, b: 28 }
 const SERIES = [
   { key: 'pass', label: 'Pass', vcolor: 'success', color: '#2e7d32' },
@@ -1016,9 +1060,7 @@ const chart = computed(() => {
 const outcomeLabel = (o) => (o === 'pass' ? 'Pass' : o === 'fail' ? 'Fail' : 'Pending')
 const outcomeColor = (o) => (o === 'pass' ? 'success' : o === 'fail' ? 'error' : 'warning')
 
-/* ------------------------------------------------------------------ */
-/* Defects by Severity (SVG donut)                                     */
-/* ------------------------------------------------------------------ */
+
 const DONUT_R = 52
 const DONUT_C = 2 * Math.PI * DONUT_R
 const SEVERITY_COLORS = { Critical: '#b71c1c', High: '#f59e0b', Medium: '#1565c0', Low: '#9e9e9e', Unrated: '#78909c' }
@@ -1050,9 +1092,7 @@ const severitySegments = computed(() => {
     })
 })
 
-/* ------------------------------------------------------------------ */
-/* Test cycles + inline priority expand                                */
-/* ------------------------------------------------------------------ */
+
 const cycleName = (c) => c.name || c.cycle_name || c.title || c.cycle_code || `Cycle #${c.id}`
 
 const cycleSummary = computed(() =>
@@ -1069,9 +1109,7 @@ const expandedPriority = ref(null)
 const togglePriority = (p) => { expandedPriority.value = expandedPriority.value === p ? null : p }
 const casesByPriority = (p) => filteredCases.value.filter((c) => c.priority === p)
 
-/* ------------------------------------------------------------------ */
-/* Drill-down + quick view                                             */
-/* ------------------------------------------------------------------ */
+
 const drill = reactive({ open: false, type: 'cases', title: '', subtitle: '', items: [], link: null })
 const qv = reactive({ open: false, item: null })
 
@@ -1148,10 +1186,56 @@ const openRunCase = (row) => {
   router.push({ name: 'TestCaseRuns', params: { id: row.testCaseId } })
 }
 
-/* ------------------------------------------------------------------ */
-/* Recent test cases                                                   */
-/* ------------------------------------------------------------------ */
-const recentCases = computed(() => [...filteredCases.value].reverse().slice(0, 5))
+
+const recentSearch = ref('')
+const recentPriority = ref('All')
+const recentCycle = ref('All')
+const recentPage = ref(1)
+const recentPageSize = ref(10)
+
+const cycleNameOf = (id) => {
+  if (!id) return '-'
+  const c = cycles.value.find((x) => String(x.id) === String(id))
+  return c ? c.name : '-'
+}
+const resultOf = (id) => caseResult(id, runs.value)
+
+const recentCycleOptions = computed(() => [
+  { title: 'All cycles', value: 'All' },
+  ...cycles.value.map((c) => ({ title: c.cycle_code ? `${c.cycle_code} · ${c.name}` : c.name, value: String(c.id) })),
+])
+
+const recentFiltersActive = computed(() => !!(recentSearch.value || '').trim() || recentPriority.value !== 'All' || recentCycle.value !== 'All')
+const clearRecentFilters = () => {
+  recentSearch.value = ''
+  recentPriority.value = 'All'
+  recentCycle.value = 'All'
+}
+
+
+const recentFiltered = computed(() => {
+  const q = (recentSearch.value || '').trim().toLowerCase()
+  return [...filteredCases.value].reverse().filter((c) => {
+    if (recentPriority.value !== 'All' && c.priority !== recentPriority.value) return false
+    if (recentCycle.value !== 'All' && String(c.cycle_id) !== recentCycle.value) return false
+    if (q) {
+      const hay = `${c.test_case_code || ''} ${c.title || ''} ${testersFor(c.id).join(' ')}`.toLowerCase()
+      if (!hay.includes(q)) return false
+    }
+    return true
+  })
+})
+
+const recentPageCount = computed(() => Math.max(1, Math.ceil(recentFiltered.value.length / recentPageSize.value)))
+const pagedRecentCases = computed(() => {
+  const start = (recentPage.value - 1) * recentPageSize.value
+  return recentFiltered.value.slice(start, start + recentPageSize.value)
+})
+const recentRangeStart = computed(() => (recentFiltered.value.length ? (recentPage.value - 1) * recentPageSize.value + 1 : 0))
+const recentRangeEnd = computed(() => Math.min(recentPage.value * recentPageSize.value, recentFiltered.value.length))
+
+watch([recentSearch, recentPriority, recentCycle, recentPageSize], () => { recentPage.value = 1 })
+watch(recentPageCount, (n) => { if (recentPage.value > n) recentPage.value = n })
 
 const getPriorityColor = (p) => p === 'Critical' ? 'red' : p === 'High' ? 'orange' : p === 'Medium' ? 'primary' : 'grey'
 const getStatusColor = (s) => s === 'Passed' ? 'success' : s === 'Failed' ? 'error' : s === 'Pending' ? 'warning' : 'grey'
@@ -1173,9 +1257,7 @@ const initialsOf = (name = '') => {
   return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?'
 }
 
-/* ------------------------------------------------------------------ */
-/* Data loading                                                        */
-/* ------------------------------------------------------------------ */
+
 const API = 'https://localhost:7049/api'
 const getList = (url) => fetch(url).then((r) => (r.ok ? r.json() : [])).catch(() => [])
 const asArray = (v) => (Array.isArray(v) ? v : [])
@@ -1231,6 +1313,10 @@ onMounted(() => {
 .cursor-pointer { cursor: pointer; }
 .border-b { border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
 .border-t { border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+
+.tester-col { max-width: 240px; }
+.tester-cell { min-width: 0; }
+.tester-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
 .clickable-row { cursor: pointer; transition: background-color 0.15s; }
 .clickable-row:hover,

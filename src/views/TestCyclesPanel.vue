@@ -19,14 +19,45 @@
       </v-btn>
     </div>
     
+    <!-- Filters -->
+    <v-card variant="outlined" class="rounded-lg pa-3 mb-3" elevation="0">
+      <v-row dense align="center">
+        <v-col cols="12" md="4">
+          <v-text-field
+            v-model="searchQuery"
+            label="Search cycle ID, version tag or project"
+            prepend-inner-icon="mdi-magnify"
+            variant="outlined"
+            density="compact"
+            clearable
+            hide-details
+          ></v-text-field>
+        </v-col>
+        <v-col cols="6" md="3">
+          <v-select v-model="projectFilter" :items="['All', ...projectOptions]" label="Project" variant="outlined" density="compact" hide-details></v-select>
+        </v-col>
+        <v-col cols="6" md="2">
+          <v-select v-model="statusFilter" :items="['All', 'Active', 'Completed']" label="Status" variant="outlined" density="compact" hide-details></v-select>
+        </v-col>
+        <v-col cols="6" md="2">
+          <v-select v-model="resultFilter" :items="['All', 'Passed', 'Failed', 'Pending']" label="Result" variant="outlined" density="compact" hide-details></v-select>
+        </v-col>
+        <v-col cols="6" md="1" class="d-flex justify-end">
+          <v-btn variant="text" size="small" class="text-capitalize" :disabled="!hasActiveFilters" @click="clearFilters">Clear</v-btn>
+        </v-col>
+      </v-row>
+    </v-card>
+
     <v-card variant="outlined" class="rounded-lg pa-0 overflow-hidden main-table-card" elevation="1">
       <v-table hover density="compact" class="cycle-table">
         <thead>
           <tr class="table-header-row">
             <th class="font-weight-bold">CYCLE ID</th>
             <th class="font-weight-bold">VERSION TAG</th>
+            <th class="font-weight-bold">PROJECT</th>
             <th class="font-weight-bold">ASSIGNED TO</th>
             <th class="font-weight-bold">AUTO RULE</th>
+            <th class="font-weight-bold">RESULT</th>
             <th class="font-weight-bold text-center" style="width: 120px;">ACTIONS</th>
           </tr>
         </thead>
@@ -55,12 +86,28 @@
             </td>
 
             <td class="py-1">
-              <span class="text-caption font-weight-medium">{{ item.assigned_to_name }}</span>
+              <span class="text-caption font-weight-medium">{{ item.project || '-' }}</span>
+            </td>
+
+            <td class="py-1">
+              <div v-if="item.assigned_names.length" class="d-flex align-center flex-nowrap" style="gap: 4px; max-width: 220px;" :title="item.assigned_names.join(', ')">
+                <span class="text-caption font-weight-medium text-truncate">{{ item.assigned_names.slice(0, 2).join(', ') }}</span>
+                <v-chip v-if="item.assigned_names.length > 2" size="x-small" variant="tonal" color="teal-darken-2" label class="font-weight-bold flex-shrink-0">
+                  +{{ item.assigned_names.length - 2 }}
+                </v-chip>
+              </div>
+              <span v-else class="text-caption text-grey">Unassigned</span>
             </td>
 
             <td class="py-1">
               <v-chip size="x-small" variant="tonal" color="purple-darken-1" label class="font-weight-bold">
                 {{ autoRuleLabel(item.auto_assign_rule) }}
+              </v-chip>
+            </td>
+
+            <td class="py-1">
+              <v-chip size="x-small" variant="flat" label :color="verdictColor(evalOf(item.id).verdict)" class="font-weight-bold text-white" :title="verdictHint(evalOf(item.id))">
+                {{ evalOf(item.id).verdict }}
               </v-chip>
             </td>
 
@@ -80,7 +127,7 @@
           </tr>
 
           <tr v-if="isExpanded(item.id)" class="expand-row">
-            <td colspan="5" class="py-3 pr-4 bg-slate-50" style="padding-left: 58px !important;">
+            <td colspan="7" class="py-3 pr-4 bg-slate-50" style="padding-left: 58px !important;">
               <div v-if="casesOf(item.id).length === 0" class="text-caption text-grey">No test cases in this cycle yet.</div>
               <div v-else>
                 <div
@@ -91,8 +138,9 @@
                 >
                   <span class="id-text font-weight-bold">{{ tc.test_case_code || tc.id }}</span>
                   <span class="text-body-2 flex-grow-1">{{ tc.title }}</span>
-                  <v-chip size="x-small" label variant="tonal" :color="caseStatusColor(tc.status)" class="font-weight-bold">
-                    {{ tc.status || 'Draft' }}
+                  <v-chip v-if="isCritical(tc)" size="x-small" label variant="flat" color="red-darken-1" class="font-weight-bold text-white">Critical</v-chip>
+                  <v-chip size="x-small" label variant="tonal" :color="caseResultColor(evalOf(item.id).results[tc.id])" class="font-weight-bold">
+                    {{ evalOf(item.id).results[tc.id] || 'Not Run' }}
                   </v-chip>
                 </div>
               </div>
@@ -100,20 +148,20 @@
           </tr>
           </template>
 
-          <tr v-if="cyclesList.length === 0">
-            <td colspan="5" class="text-center text-grey pa-8">No test cycles available.</td>
+          <tr v-if="visibleCycles.length === 0">
+            <td colspan="7" class="text-center text-grey pa-8">{{ cyclesList.length === 0 ? 'No test cycles available.' : 'No test cycles match your filters.' }}</td>
           </tr>
         </tbody>
       </v-table>
 
       <div
-        v-if="cyclesList.length > 0"
+        v-if="visibleCycles.length > 0"
         class="d-flex flex-wrap justify-space-between align-center pa-2 px-3 border-t bg-slate-50"
         style="row-gap: 8px;"
       >
         <div class="text-caption text-grey-darken-1 font-weight-medium" style="font-size: 0.75rem;">
           Showing <span class="text-teal-darken-3 font-weight-bold">{{ pageStart }}-{{ pageEnd }}</span> of
-          <span class="text-teal-darken-3 font-weight-bold">{{ cyclesList.length }}</span> records
+          <span class="text-teal-darken-3 font-weight-bold">{{ visibleCycles.length }}</span> records
         </div>
 
         <div class="d-flex align-center" style="gap: 12px;">
@@ -185,20 +233,67 @@
               ></v-text-field>
 
               <div class="d-flex align-center mb-3" style="gap: 10px;">
+                <div class="testmo-icon-badge"><v-icon size="16" color="white">mdi-folder-outline</v-icon></div>
+                <span class="text-caption font-weight-bold text-slate-500" style="text-transform: uppercase; letter-spacing: 0.04em;">Project *</span>
+              </div>
+              <v-select
+                v-model="cycleForm.project"
+                :items="projectOptions"
+                variant="outlined"
+                density="comfortable"
+                placeholder="Select the project this cycle tests"
+                hint="The system or project that this Test Cycle is testing."
+                persistent-hint
+                class="mb-4"
+              ></v-select>
+
+              <div class="d-flex align-center mb-3" style="gap: 10px;">
                 <div class="testmo-icon-badge"><v-icon size="16" color="white">mdi-account-outline</v-icon></div>
                 <span class="text-caption font-weight-bold text-slate-500" style="text-transform: uppercase; letter-spacing: 0.04em;">Assigned To</span>
               </div>
               <v-select
-                v-model="cycleForm.assignedTo"
+                v-model="cycleForm.assignedTesters"
                 :items="users"
                 item-title="full_name"
                 item-value="id"
                 variant="outlined"
                 density="comfortable"
                 placeholder="Unassigned"
+                multiple
+                chips
+                closable-chips
                 clearable
-                hide-details
-              ></v-select>
+                hint="Tick one or more testers for this cycle."
+                persistent-hint
+                class="mb-4"
+              >
+                <template #item="{ props, item }">
+                  <v-list-item v-bind="props" :title="item.raw.full_name">
+                    <template #prepend="{ isSelected }">
+                      <v-checkbox-btn :model-value="isSelected" density="compact" color="#0f766e" class="mr-2" />
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-select>
+
+              <div class="d-flex align-center mb-3" style="gap: 10px;">
+                <div class="testmo-icon-badge"><v-icon size="16" color="white">mdi-flask-outline</v-icon></div>
+                <span class="text-caption font-weight-bold text-slate-500" style="text-transform: uppercase; letter-spacing: 0.04em;">Test Cases in this cycle</span>
+              </div>
+              <v-autocomplete
+                v-model="cycleForm.testCaseIds"
+                :items="testCaseItems"
+                item-title="label"
+                item-value="id"
+                variant="outlined"
+                density="comfortable"
+                multiple
+                chips
+                closable-chips
+                placeholder="Search and select test cases"
+                hint="A test case belongs to one cycle. Selecting one that is already in another cycle moves it here."
+                persistent-hint
+              ></v-autocomplete>
             </div>
 
             <!-- Properties panel -->
@@ -295,6 +390,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { evaluateCycle, isCritical, verdictColor, caseResultColor } from '@/utils/cycleResult'
 
 const router = useRouter()
 
@@ -312,6 +408,20 @@ const API_URL = 'https://localhost:7049/api/TestCycles'
 const apiCycles = ref([])
 const apiLoading = ref(false)
 const users = ref([])
+const runs = ref([])
+
+// TODO: replace with the real project list (or load it from the API)
+const projectOptions = ['K-Services (Kp.Web.Employee)', 'Kp.Api.Organization.Worker', 'UAT Management System']
+
+const fetchRuns = async () => {
+  try {
+    const res = await fetch('https://localhost:7049/api/TestRuns')
+    runs.value = res.ok ? await res.json() : []
+  } catch (error) {
+    console.error('Failed to load test runs:', error)
+    runs.value = []
+  }
+}
 
 const fetchUsers = async () => {
   try {
@@ -366,6 +476,16 @@ const generateCycleCode = () => {
   return prefix + String(next).padStart(3, '0')
 }
 
+// Tester ids of a cycle: the comma separated list, or the old single assigned_to for older records
+const testerIdsOf = (cycle) => {
+  const fromList = String(cycle?.assigned_testers || '')
+    .split(',')
+    .map((x) => Number(x.trim()))
+    .filter((n) => n > 0)
+  if (fromList.length) return [...new Set(fromList)]
+  return cycle?.assigned_to ? [Number(cycle.assigned_to)] : []
+}
+
 const cyclesList = computed(() => {
   return apiCycles.value.map(cycle => ({
     ...cycle,
@@ -375,25 +495,77 @@ const cyclesList = computed(() => {
     status: cycle.status || 'Active',
     auto_assign_rule: cycle.auto_assign_rule || 'none',
     created_by_name: cycle.created_by_name || userName(cycle.created_by) || 'System',
+    assigned_names: testerIdsOf(cycle).map((id) => userName(id)).filter(Boolean),
     assigned_to_name: cycle.assigned_to_name || userName(cycle.assigned_to) || 'Unassigned',
     dt_start_formatted: formatDate(cycle.dt_start),
     dt_end_formatted: formatDate(cycle.dt_end),
     created_date_formatted: formatDate(cycle.created_date)
-  }))
+  })).sort((a, b) => {
+    if (a.cycle_code !== '-' && b.cycle_code !== '-' && a.cycle_code !== b.cycle_code) {
+      return b.cycle_code.localeCompare(a.cycle_code)
+    }
+    return Number(b.id) - Number(a.id)
+  })
 })
+
+// ---------- Filters ----------
+const searchQuery = ref('')
+const projectFilter = ref('All')
+const statusFilter = ref('All')
+const resultFilter = ref('All')
+
+const hasActiveFilters = computed(() =>
+  !!(searchQuery.value || '').trim() || projectFilter.value !== 'All' || statusFilter.value !== 'All' || resultFilter.value !== 'All'
+)
+const clearFilters = () => {
+  searchQuery.value = ''
+  projectFilter.value = 'All'
+  statusFilter.value = 'All'
+  resultFilter.value = 'All'
+}
+
+// ---------- Result (based on critical test cases) ----------
+const evalByCycle = computed(() => {
+  const map = {}
+  apiCycles.value.forEach((c) => { map[c.id] = evaluateCycle(props.testCases.filter((tc) => String(tc.cycle_id) === String(c.id)), runs.value) })
+  return map
+})
+const emptyEval = evaluateCycle([], [])
+const evalOf = (cycleId) => evalByCycle.value[cycleId] || emptyEval
+
+const verdictHint = (ev) => {
+  if (!ev.total) return 'No test cases in this cycle'
+  if (ev.basis === 'critical') {
+    return `Critical test cases: ${ev.critical.passed}/${ev.critical.total} passed, ${ev.critical.failed} failed. Overall pass rate ${ev.pct}%.`
+  }
+  return `No critical test cases. ${ev.passed}/${ev.total} passed (${ev.pct}%).`
+}
+
+const visibleCycles = computed(() => {
+  const q = (searchQuery.value || '').trim().toLowerCase()
+  return cyclesList.value.filter((c) => {
+    if (q && !(`${c.cycle_code} ${c.name} ${c.project || ''}`.toLowerCase().includes(q))) return false
+    if (projectFilter.value !== 'All' && c.project !== projectFilter.value) return false
+    if (statusFilter.value !== 'All' && c.status !== statusFilter.value) return false
+    if (resultFilter.value !== 'All' && evalOf(c.id).verdict !== resultFilter.value) return false
+    return true
+  })
+})
+
+watch([searchQuery, projectFilter, statusFilter, resultFilter], () => { currentPage.value = 1 })
 
 // ---------- Pagination ----------
 const itemsPerPageOptions = [5, 10, 20, 50]
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
-const totalPages = computed(() => Math.max(1, Math.ceil(cyclesList.value.length / itemsPerPage.value)))
+const totalPages = computed(() => Math.max(1, Math.ceil(visibleCycles.value.length / itemsPerPage.value)))
 const paginatedCycles = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return cyclesList.value.slice(start, start + itemsPerPage.value)
+  return visibleCycles.value.slice(start, start + itemsPerPage.value)
 })
-const pageStart = computed(() => (cyclesList.value.length === 0 ? 0 : (currentPage.value - 1) * itemsPerPage.value + 1))
-const pageEnd = computed(() => Math.min(currentPage.value * itemsPerPage.value, cyclesList.value.length))
+const pageStart = computed(() => (visibleCycles.value.length === 0 ? 0 : (currentPage.value - 1) * itemsPerPage.value + 1))
+const pageEnd = computed(() => Math.min(currentPage.value * itemsPerPage.value, visibleCycles.value.length))
 
 watch(itemsPerPage, () => { currentPage.value = 1 })
 watch(totalPages, (n) => { if (currentPage.value > n) currentPage.value = n })
@@ -402,19 +574,19 @@ watch(totalPages, (n) => { if (currentPage.value > n) currentPage.value = n })
 const casesOf = (cycleId) =>
   props.testCases.filter(tc => String(tc.cycle_id) === String(cycleId))
 
-const caseStatusColor = (status) => {
-  if (status === 'Passed') return 'success'
-  if (status === 'Failed') return 'error'
-  if (status === 'Pending') return 'warning'
-  return 'grey'
-}
-
 // which cycle rows are expanded
 const expandedIds = ref([])
 const isExpanded = (id) => expandedIds.value.includes(id)
 const toggleExpand = (id) => {
   expandedIds.value = isExpanded(id) ? expandedIds.value.filter(x => x !== id) : [...expandedIds.value, id]
 }
+
+const testCaseItems = computed(() =>
+  props.testCases.map((tc) => ({
+    id: tc.id,
+    label: `${tc.test_case_code || '#' + tc.id} · ${tc.title || 'Untitled'}${isCritical(tc) ? ' (Critical)' : ''}`
+  }))
+)
 
 const versionTagOptions = ['v2.0.0 Pre-Launch UAT', 'Sprint 25 Regression', 'v1.5.0 Production']
 
@@ -465,7 +637,9 @@ const emptyForm = () => ({
   createdDate: today(),
   autoAssignRule: 'none',
   createdBy: null,
-  assignedTo: null,
+  assignedTesters: [],
+  project: '',
+  testCaseIds: [],
   raw: null
 })
 
@@ -493,16 +667,50 @@ const openEditDialog = (item) => {
     createdDate: item.created_date ? item.created_date.split('T')[0] : today(),
     autoAssignRule: item.auto_assign_rule || 'none',
     createdBy: item.created_by ?? null,
-    assignedTo: item.assigned_to ?? null,
+    assignedTesters: testerIdsOf(item),
+    project: item.project || '',
+    testCaseIds: casesOf(item.id).map((tc) => tc.id),
     // untouched original record, so fields this form doesn't edit (module, priority, ...) aren't wiped on update
     raw: apiCycles.value.find(c => c.id === item.id) || null
   }
   dialog.value = true
 }
 
+// Test Cycle -> Test Cases: the cycle form picks which test cases belong to it.
+// (Test Case -> Test Cycle is still set from the Test Case form.)
+const putTestCase = async (tc, cycleId, versionTag) => {
+  const { feedbacks, ...rest } = tc
+  const res = await fetch(`https://localhost:7049/api/TestCases/${tc.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...rest, cycle_id: cycleId, version_tag: versionTag })
+  })
+  return res.ok
+}
+
+const syncCycleCases = async (cycleId) => {
+  const wanted = new Set((cycleForm.value.testCaseIds || []).map(String))
+  const failed = []
+
+  for (const tc of props.testCases) {
+    const inCycle = String(tc.cycle_id) === String(cycleId)
+    const shouldBeIn = wanted.has(String(tc.id))
+    if (shouldBeIn && !inCycle) {
+      if (!(await putTestCase(tc, cycleId, cycleForm.value.name))) failed.push(tc.test_case_code || tc.id)
+    } else if (!shouldBeIn && inCycle) {
+      if (!(await putTestCase(tc, null, null))) failed.push(tc.test_case_code || tc.id)
+    }
+  }
+  return failed.length ? `Cycle saved, but these test cases could not be updated: ${failed.join(', ')}` : ''
+}
+
 const saveCycle = async () => {
   if (!cycleForm.value.name) {
     alert('Please select a Version Tag!')
+    return
+  }
+  if (!cycleForm.value.project) {
+    alert('Please select the Project this cycle belongs to!')
     return
   }
 
@@ -523,7 +731,10 @@ const saveCycle = async () => {
       status: cycleForm.value.status || 'Active',
       auto_assign_rule: cycleForm.value.autoAssignRule || null,
       created_by: cycleForm.value.createdBy ?? currentUserId(),
-      assigned_to: cycleForm.value.assignedTo ?? null
+      // first tester stays in assigned_to for older screens; the full list goes in assigned_testers
+      assigned_to: (cycleForm.value.assignedTesters || [])[0] ?? null,
+      assigned_testers: (cycleForm.value.assignedTesters || []).join(',') || null,
+      project: cycleForm.value.project || null
     }
 
     if (isEditing.value) payload.id = cycleForm.value.id
@@ -537,9 +748,19 @@ const saveCycle = async () => {
     })
 
     if (response.ok) {
-      alert(isEditing.value ? 'Successfully updated!' : 'Successfully saved!')
+      let savedId = cycleForm.value.id
+      try { const saved = await response.json(); if (saved?.id) savedId = saved.id } catch (_) {}
+      if (!savedId) {
+        await fetchCyclesFromAPI()
+        savedId = apiCycles.value.find((c) => c.cycle_code === cycleForm.value.cycleId)?.id
+      }
+
+      const syncError = savedId ? await syncCycleCases(savedId) : ''
+
+      alert(syncError || (isEditing.value ? 'Successfully updated!' : 'Successfully saved!'))
       dialog.value = false
       await fetchCyclesFromAPI()
+      await fetchRuns()
       emit('changed')
     } else {
       const errorText = await response.text()
@@ -587,6 +808,7 @@ const getStatusColor = (status) => {
 onMounted(() => {
   fetchUsers()
   fetchCyclesFromAPI()
+  fetchRuns()
 })
 </script>
 

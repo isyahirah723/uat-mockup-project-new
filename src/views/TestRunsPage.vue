@@ -1,486 +1,324 @@
 <template>
-  <div class="runs-page">
-
-    <!-- Header bar -->
-    <div class="page-bar elevation-1">
-      <div class="d-flex align-center" style="gap: 12px;">
-        <v-btn icon variant="tonal" size="small" class="back-btn" @click="goBack" title="Back to Test Cases">
-          <v-icon size="20">mdi-arrow-left</v-icon>
-        </v-btn>
-        <div>
-          <div class="page-title font-weight-bold">Runs &amp; results</div>
-          <div v-if="testCase" class="page-crumb">
-            <span class="crumb-code">{{ testCase.test_case_code || testCase.id }}</span>
-            <span class="crumb-sep">/</span>
-            <span>{{ testCase.title }}</span>
-          </div>
-        </div>
-      </div>
-      <v-btn size="small" variant="flat" color="primary" class="text-capitalize refresh-btn font-weight-bold" prepend-icon="mdi-refresh" :loading="loading" @click="fetchRows()">
-        Refresh
-      </v-btn>
-    </div>
-
-    <div class="page-body">
-
-      <!-- Summary tiles -->
-      <div class="tiles">
-
-        <!-- Active -->
-        <div class="tile active-tile">
-          <div class="tile-visual">
-            <svg viewBox="0 0 140 140" width="140" height="140">
-              <circle cx="70" cy="70" r="52" fill="none" stroke="#94a3b8" stroke-opacity="0.3" stroke-width="16" />
-              <circle
-                v-for="(s, i) in donutSegments"
-                :key="'d' + i"
-                cx="70" cy="70" r="52" fill="none"
-                :stroke="s.color" stroke-width="16"
-                :stroke-dasharray="s.dash" :stroke-dashoffset="s.offset"
-                transform="rotate(-90 70 70)"
-                stroke-linecap="round"
-              />
-            </svg>
-            <div class="donut-center">
-              <div class="donut-label">ACTIVE</div>
-              <div class="donut-num">{{ activeRows.length }}</div>
-              <div v-if="unstartedCount" class="donut-sub">{{ unstartedCount }} unstarted</div>
+  <v-container class="pa-4 mx-auto" style="max-width: 1280px;">
+    <!-- Header -->
+    <v-row class="mb-3" align="center">
+      <v-col cols="12" md="8">
+        <div class="d-flex align-center" style="gap: 12px;">
+          <v-btn icon size="small" variant="tonal" color="#0f766e" title="Back to Test Cases" @click="goBack">
+            <v-icon>mdi-arrow-left</v-icon>
+          </v-btn>
+          <div>
+            <div class="text-h5 page-heading" style="font-size: 1.25rem !important;">Test Runs</div>
+            <div class="page-subheading" style="font-size: 0.8rem;">
+              <span v-if="testCase">
+                <span class="font-weight-bold">{{ testCase.test_case_code || '#' + testCase.id }}</span>
+                &middot; {{ testCase.title }}
+              </span>
+              <span v-else-if="!loading">Test case not found</span>
             </div>
           </div>
-          <div class="tile-meta">
-            <div class="meta-title">ACTIVE RUNS</div>
-            <div class="meta-line"><v-icon size="16" color="#3b82f6">mdi-clock-outline</v-icon><span><b>{{ remainingSteps }}</b> step{{ remainingSteps === 1 ? '' : 's' }} remaining</span></div>
-            <div class="meta-line"><v-icon size="16" color="#3b82f6">mdi-account-group-outline</v-icon><span><b>{{ rows.length }}</b> tester{{ rows.length === 1 ? '' : 's' }}</span></div>
-          </div>
         </div>
+      </v-col>
+      <v-col cols="12" md="4" class="d-flex justify-md-end">
+        <v-btn
+          color="#0f766e"
+          class="text-white text-capitalize font-weight-bold rounded-lg"
+          prepend-icon="mdi-play-circle-outline"
+          elevation="2"
+          :disabled="!testCase"
+          @click="startRun"
+        >Run Test</v-btn>
+      </v-col>
+    </v-row>
 
-        <!-- Latest results -->
-        <div class="tile latest-tile">
-          <div class="tile-visual gauge">
-            <svg viewBox="0 0 160 90" width="160" height="90">
-              <circle cx="80" cy="80" r="60" fill="none" stroke="#94a3b8" stroke-opacity="0.3" stroke-width="22"
-                      :stroke-dasharray="`${gaugeHalf} ${gaugeFull}`" transform="rotate(180 80 80)" />
-              <circle
-                v-for="(s, i) in gaugeSegments"
-                :key="'g' + i"
-                cx="80" cy="80" r="60" fill="none"
-                :stroke="s.color" stroke-width="22"
-                :stroke-dasharray="s.dash" :stroke-dashoffset="s.offset"
-                transform="rotate(180 80 80)"
-              />
-            </svg>
-          </div>
-          <div class="tile-meta">
-            <div class="meta-title">LATEST RESULTS</div>
-            <div class="meta-line"><v-icon size="16" color="#10b981">mdi-check-circle-outline</v-icon><span><b>{{ successPct }}%</b> successful</span></div>
-            <div class="meta-line"><v-icon size="16" color="#64748b">mdi-calendar-outline</v-icon><span>{{ lastActivityText }}</span></div>
-          </div>
+    <v-alert v-if="error" type="error" variant="tonal" density="compact" closable class="mb-3 rounded-lg" @click:close="error = ''">
+      {{ error }}
+    </v-alert>
+
+    <!-- Summary -->
+    <v-row dense class="mb-3">
+      <v-col v-for="s in summary" :key="s.label" cols="6" md="3">
+        <v-card variant="outlined" class="rounded-lg pa-3 summary-card" :class="{ 'summary-active': statusFilter === s.filter }" @click="statusFilter = s.filter">
+          <div class="text-caption text-grey font-weight-bold">{{ s.label }}</div>
+          <div class="text-h5 font-weight-bold" :style="{ color: s.color }">{{ s.value }}</div>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Filters -->
+    <v-card variant="outlined" class="rounded-lg pa-3 mb-3" elevation="0">
+      <v-row dense align="center">
+        <v-col cols="12" md="6">
+          <v-text-field
+            v-model="search"
+            label="Search run ID or tester"
+            prepend-inner-icon="mdi-magnify"
+            variant="outlined"
+            density="compact"
+            clearable
+            hide-details
+          ></v-text-field>
+        </v-col>
+        <v-col cols="8" md="4">
+          <v-select
+            v-model="statusFilter"
+            :items="statusOptions"
+            label="Status"
+            variant="outlined"
+            density="compact"
+            hide-details
+          ></v-select>
+        </v-col>
+        <v-col cols="4" md="2" class="d-flex justify-end">
+          <v-btn variant="text" size="small" class="text-capitalize" :disabled="!hasFilters" @click="clearFilters">Clear</v-btn>
+        </v-col>
+      </v-row>
+    </v-card>
+
+    <!-- Table -->
+    <v-card variant="outlined" class="rounded-lg pa-0 overflow-hidden main-table-card" elevation="1">
+      <v-table hover density="compact" class="runs-table">
+        <thead>
+          <tr class="table-header-row">
+            <th>RUN ID</th>
+            <th>TESTER</th>
+            <th>STATUS</th>
+            <th>STARTED</th>
+            <th>COMPLETED</th>
+            <th class="text-center" style="width: 120px;">ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in pagedRuns" :key="r.id" class="run-row" @click="openReport(r)">
+            <td class="py-1 font-weight-bold">{{ runCode(r.id) }}</td>
+            <td class="py-1">{{ r.user_name || 'User #' + r.executed_by }}</td>
+            <td class="py-1">
+              <v-chip size="x-small" variant="flat" label class="font-weight-bold text-white" :color="statusColor(r.run_status)">
+                {{ r.run_status || 'Not Started' }}
+              </v-chip>
+            </td>
+            <td class="py-1 text-caption">{{ formatDateTime(r.started_at) }}</td>
+            <td class="py-1 text-caption">{{ formatDateTime(r.completed_at) }}</td>
+            <td class="text-center py-1" @click.stop>
+              <v-btn
+                icon
+                variant="tonal"
+                size="x-small"
+                style="width: 22px; height: 22px;"
+                class="mr-1"
+                color="teal-darken-2"
+                :disabled="!isFinished(r)"
+                :title="isFinished(r) ? 'View run report' : 'The report is available after the run is submitted'"
+                @click="openReport(r)"
+              ><v-icon size="14">mdi-file-chart-outline</v-icon></v-btn>
+              <v-btn
+                icon
+                variant="tonal"
+                size="x-small"
+                style="width: 22px; height: 22px;"
+                color="red"
+                title="Delete run"
+                @click="confirmDelete(r)"
+              ><v-icon size="14">mdi-delete-outline</v-icon></v-btn>
+            </td>
+          </tr>
+          <tr v-if="!loading && filteredRuns.length === 0">
+            <td colspan="6" class="text-center text-grey py-6">
+              {{ runs.length === 0 ? 'No runs yet. Click Run Test to start the first one.' : 'No runs match your filters.' }}
+            </td>
+          </tr>
+          <tr v-if="loading">
+            <td colspan="6" class="text-center py-6"><v-progress-circular indeterminate size="24" width="3" color="#0f766e" /></td>
+          </tr>
+        </tbody>
+      </v-table>
+
+      <div v-if="filteredRuns.length > 0" class="d-flex align-center justify-space-between flex-wrap pa-3 table-footer" style="gap: 8px;">
+        <div class="text-caption">
+          Showing <b>{{ rangeStart }}-{{ rangeEnd }}</b> of <b>{{ filteredRuns.length }}</b> runs
         </div>
-
-        <!-- Recently closed -->
-        <div class="tile tile-closed">
-          <div class="closed-top">
-            <div class="meta-title">RECENTLY CLOSED</div>
-            <div class="closed-num">{{ closedRunsAll.length }}</div>
-            <div class="closed-sub">▲ {{ closedThisMonth }} this month</div>
-          </div>
-          <svg class="spark" viewBox="0 0 300 70" preserveAspectRatio="none">
-            <path :d="sparkArea" fill="url(#sparkGradient)" />
-            <defs>
-              <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3" />
-                <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0" />
-              </linearGradient>
-            </defs>
-            <path :d="sparkLine" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" />
-          </svg>
+        <div class="d-flex align-center" style="gap: 12px;">
+          <v-select v-model="pageSize" :items="[5, 10, 25]" density="compact" variant="outlined" hide-details style="width: 90px;" />
+          <v-pagination v-model="page" :length="pageCount" :total-visible="5" density="compact" />
         </div>
       </div>
+    </v-card>
 
-      <!-- Tabs (Kemas kini reka bentuk pil & bahasa) -->
-      <div class="tabs">
-        <button class="tab" :class="{ on: tab === 'active' }" @click="tab = 'active'">ACTIVE <span class="tab-count">{{ activeRows.length }}</span></button>
-        <button class="tab" :class="{ on: tab === 'closed' }" @click="tab = 'closed'">CLOSED <span class="tab-count">{{ closedRows.length }}</span></button>
-      </div>
+    <!-- Tester picker -->
+    <v-dialog v-model="pickerDialog" max-width="480">
+      <v-card class="rounded-xl overflow-hidden">
+        <v-card-title class="pa-4 text-white picker-header">
+          <div class="text-subtitle-1 font-weight-bold">Who is running this test?</div>
+          <div class="text-caption" style="opacity: 0.85;">Pick the tester. The run is recorded under this person.</div>
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <v-alert v-if="!assignedTesters.length" type="info" variant="tonal" density="compact" class="mb-3 rounded-lg">
+            No tester is assigned to this test case yet, so all users are listed.
+          </v-alert>
+          <div
+            v-for="t in pickerTesters"
+            :key="t.user_id"
+            class="tester-card d-flex align-center pa-3 mb-2 rounded-lg"
+            @click="runAs(t)"
+          >
+            <v-avatar size="34" color="#0f766e" class="mr-3 text-white font-weight-bold" style="font-size: 0.8rem;">{{ initials(t.user_name) }}</v-avatar>
+            <div>
+              <div class="font-weight-bold text-body-2">{{ t.user_name }}</div>
+              <div class="text-caption text-grey">{{ t.department || 'No department' }}</div>
+            </div>
+            <v-spacer />
+            <v-icon size="18" color="#0f766e">mdi-play-circle-outline</v-icon>
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-3">
+          <v-spacer />
+          <v-btn variant="text" class="text-capitalize" @click="pickerDialog = false">Cancel</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-      <!-- Group + table -->
-      <div v-if="loading && !rows.length" class="text-center py-12">
-        <v-progress-circular indeterminate color="primary" size="48" width="4" />
-      </div>
-
-      <div v-else-if="rows.length === 0" class="empty">
-        <v-icon size="56" color="#94a3b8">mdi-account-off-outline</v-icon>
-        <div class="empty-title">No testers assigned</div>
-        <div class="empty-sub">Assign testers to this test case to see runs here.</div>
-      </div>
-
-      <template v-else>
-        <div class="group-head">
-          <div class="group-flag"><v-icon size="16" color="#3b82f6">mdi-flag-outline</v-icon></div>
-          <span class="group-name font-weight-bold">{{ testCase?.title || 'Test case' }}</span>
-          <span v-if="testCase?.priority" class="badge" :class="'p-' + String(testCase.priority).toLowerCase()">{{ testCase.priority }}</span>
-          <span v-if="testCase?.approval_status" class="badge" :class="testCase.approval_status === 'Approved' ? 'b-green' : 'b-orange'">{{ testCase.approval_status }}</span>
-          <span class="group-right font-weight-medium">{{ totalSteps }} step{{ totalSteps === 1 ? '' : 's' }}</span>
-        </div>
-
-        <div class="table-container elevation-1">
-          <table class="runs-table">
-            <thead>
-              <tr>
-                <th style="width: 30%;">Run</th>
-                <th style="width: 15%;">State</th>
-                <th style="width: 15%;">Tags</th>
-                <th style="width: 12%;">Contributors</th>
-                <th style="width: 20%;">Status</th>
-                <th style="width: 8%;"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="t in visibleRows" :key="t.run_id ? 'r' + t.run_id : 'u' + t.user_id" class="run-row" @click="rowClick(t)">
-                <td>
-                  <div class="d-flex align-center" style="gap: 12px;">
-                    <div class="run-icon"><v-icon size="16" color="#3b82f6">mdi-chart-pie</v-icon></div>
-                    <div>
-                      <div class="run-name">{{ t.user_name }}</div>
-                      <div class="run-sub">{{ t.run_id ? formatRunNumber(t.run_number) : 'No run yet' }}</div>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <span class="state" :style="{ color: stateOf(t).color }">
-                    <v-icon size="16" :color="stateOf(t).color">{{ stateOf(t).icon }}</v-icon>
-                    <span class="font-weight-medium">{{ stateOf(t).label }}</span>
-                  </span>
-                </td>
-                <td>
-                  <span v-if="t.department" class="tag"><v-icon size="12" class="mr-1">mdi-tag-outline</v-icon>{{ t.department }}</span>
-                </td>
-                <td>
-                  <div class="avatar" :title="t.user_name">{{ initials(t.user_name) }}</div>
-                </td>
-                <td>
-                  <div class="d-flex align-center" style="gap: 12px;">
-                    <div class="bar">
-                      <span v-for="(s, i) in barSegments(t)" :key="i" class="bar-seg" :style="{ width: s.w + '%', background: s.color }" />
-                    </div>
-                    <span class="pct font-weight-bold">{{ progressPct(t) }}%</span>
-                  </div>
-                </td>
-                <td class="text-right" @click.stop>
-                  <v-btn size="small" variant="flat" color="primary" class="text-white text-capitalize font-weight-bold run-btn px-4" @click="startExecutionFor(t)">
-                    {{ !t.run_id ? 'Start' : isClosed(t) ? 'Run again' : 'Continue' }}
-                  </v-btn>
-                </td>
-              </tr>
-              <tr v-if="visibleRows.length === 0">
-                <td colspan="6" class="text-center py-8 empty-sub">No runs in this view.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </template>
-    </div>
-
-  </div>
+    <!-- Delete confirm -->
+    <v-dialog v-model="deleteDialog" max-width="420">
+      <v-card class="rounded-xl pa-2">
+        <v-card-title class="text-subtitle-1 font-weight-bold">Delete {{ deleteTarget ? runCode(deleteTarget.id) : 'run' }}?</v-card-title>
+        <v-card-text class="text-body-2">
+          This removes the run together with its recorded step results. It cannot be undone.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" class="text-capitalize" @click="deleteDialog = false">Cancel</v-btn>
+          <v-btn color="red" variant="flat" class="text-capitalize text-white" :loading="deleting" @click="deleteRun">Delete</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-container>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const API = 'https://localhost:7049/api'
 const route = useRoute()
 const router = useRouter()
-const testCaseId = route.params.id
+const testCaseId = Number(route.params.id)
 
+const loading = ref(true)
+const error = ref('')
 const testCase = ref(null)
-const rows = ref([])
-const allRuns = ref([])
-const loading = ref(false)
+const runs = ref([])
+const users = ref([])
+const assignments = ref([])
 
-const tab = ref('active')
-const search = ref('')
-const stateFilter = ref('All states')
-const deptFilter = ref('All tags')
+const getList = (url) => fetch(url).then((r) => (r.ok ? r.json() : [])).catch(() => [])
 
-const goBack = () => router.back()
-const initials = (n) => (n || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
-const formatRunNumber = (n) => 'RUN-' + String(n).padStart(3, '0')
-
-const FAIL_SET = ['Failed', 'Fail', 'Not Approved']
-const COLORS = { pass: '#10b981', fail: '#ef4444', blocked: '#f59e0b', na: '#94a3b8', progress: '#3b82f6', unstarted: '#93c5fd' }
-
-const totalSteps = computed(() => testCase.value?.steps?.length || 0)
-
-const isClosed = (t) => !!t.run_id && t.run_status !== 'In Progress'
-
-const stateOf = (t) => {
-  if (!t.run_id) return { label: 'New', icon: 'mdi-lightbulb-on-outline', color: '#f59e0b' }
-  if (t.run_status === 'In Progress') return { label: 'In progress', icon: 'mdi-history', color: '#3b82f6' }
-  if (FAIL_SET.includes(t.run_status)) return { label: 'Failed', icon: 'mdi-close-circle-outline', color: '#ef4444' }
-  return { label: 'Completed', icon: 'mdi-check-circle-outline', color: '#10b981' }
+const loadRuns = async () => {
+  const data = await getList(`${API}/TestRuns/by-testcase/${testCaseId}`)
+  runs.value = Array.isArray(data) ? data : []
 }
 
-const progressPct = (t) => {
-  if (isClosed(t)) return 100
-  if (!totalSteps.value) return 0
-  return Math.min(100, Math.round((t.counts.total / totalSteps.value) * 100))
-}
-
-const barSegments = (t) => {
-  if (isClosed(t) && t.counts.total === 0) {
-    return [{ w: 100, color: FAIL_SET.includes(t.run_status) ? COLORS.fail : COLORS.pass }]
-  }
-  const denom = Math.max(totalSteps.value, t.counts.total, 1)
-  return [
-    { w: (t.counts.pass / denom) * 100, color: COLORS.pass },
-    { w: (t.counts.blocked / denom) * 100, color: COLORS.blocked },
-    { w: (t.counts.fail / denom) * 100, color: COLORS.fail },
-    { w: (t.counts.na / denom) * 100, color: COLORS.na },
-  ].filter((s) => s.w > 0)
-}
-
-const closedHistory = ref([])
-const stepsCache = {}
-const closedRows = computed(() => closedHistory.value)
-const activeRows = computed(() => rows.value.filter((t) => !isClosed(t)))
-const unstartedCount = computed(() => activeRows.value.filter((t) => !t.run_id).length)
-
-const stateOptions = ['All states', 'New', 'In progress', 'Completed', 'Failed']
-const deptOptions = computed(() => ['All tags', ...new Set(rows.value.map((t) => t.department).filter(Boolean))])
-
-const visibleRows = computed(() => {
-  const base = tab.value === 'active' ? activeRows.value : closedRows.value
-  const q = search.value.trim().toLowerCase()
-  return base.filter((t) => {
-    if (q && !t.user_name.toLowerCase().includes(q) && !String(t.run_id || '').includes(q) && !String(t.run_number || '').includes(q)) return false
-    if (stateFilter.value !== 'All states' && stateOf(t).label !== stateFilter.value) return false
-    if (deptFilter.value !== 'All tags' && t.department !== deptFilter.value) return false
-    return true
-  })
-})
-
-const remainingSteps = computed(() =>
-  activeRows.value.reduce((sum, t) => sum + Math.max(totalSteps.value - t.counts.total, 0), 0)
-)
-
-const buildSegments = (parts, r, fraction) => {
-  const C = 2 * Math.PI * r
-  const L = C * fraction
-  const sum = parts.reduce((s, p) => s + p.value, 0)
-  if (!sum) return []
-  let acc = 0
-  return parts.filter((p) => p.value > 0).map((p) => {
-    const len = (p.value / sum) * L
-    const seg = { color: p.color, dash: `${len} ${C - len}`, offset: -acc }
-    acc += len
-    return seg
-  })
-}
-
-const donutSegments = computed(() =>
-  buildSegments([
-    { value: activeRows.value.filter((t) => t.run_id).length, color: COLORS.progress },
-    { value: unstartedCount.value, color: COLORS.unstarted },
-  ], 52, 1)
-)
-
-const gaugeFull = 2 * Math.PI * 60
-const gaugeHalf = Math.PI * 60
-
-const totals = computed(() =>
-  [...closedHistory.value, ...activeRows.value].reduce(
-    (a, t) => {
-      if (t.counts.total === 0 && isClosed(t)) {
-        if (FAIL_SET.includes(t.run_status)) a.fail += 1
-        else a.pass += 1
-        a.total += 1
-        return a
-      }
-      a.pass += t.counts.pass; a.fail += t.counts.fail; a.blocked += t.counts.blocked; a.na += t.counts.na; a.total += t.counts.total
-      return a
-    },
-    { pass: 0, fail: 0, blocked: 0, na: 0, total: 0 }
-  )
-)
-
-const gaugeSegments = computed(() =>
-  buildSegments([
-    { value: totals.value.pass, color: COLORS.pass },
-    { value: totals.value.blocked, color: COLORS.blocked },
-    { value: totals.value.fail, color: COLORS.fail },
-    { value: totals.value.na, color: COLORS.na },
-  ], 60, 0.5)
-)
-
-const successPct = computed(() => (totals.value.total ? Math.round((totals.value.pass / totals.value.total) * 100) : 0))
-
-const lastActivityText = computed(() => {
-  const dates = allRuns.value.map((r) => r.completed_at || r.started_at).filter(Boolean).map((d) => new Date(d))
-  if (!dates.length) return 'No runs yet'
-  const latest = new Date(Math.max(...dates))
-  return 'Last run ' + latest.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })
-})
-
-const closedRunsAll = computed(() => allRuns.value.filter((r) => r.run_status !== 'In Progress' && r.completed_at))
-
-const closedThisMonth = computed(() => {
-  const now = new Date()
-  return closedRunsAll.value.filter((r) => {
-    const d = new Date(r.completed_at)
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-  }).length
-})
-
-const sparkPoints = computed(() => {
-  const days = 14
-  const today = new Date(); today.setHours(23, 59, 59, 999)
-  const vals = []
-  for (let i = days - 1; i >= 0; i--) {
-    const end = new Date(today); end.setDate(end.getDate() - i)
-    vals.push(closedRunsAll.value.filter((r) => new Date(r.completed_at) <= end).length)
-  }
-  const max = Math.max(...vals), min = Math.min(...vals)
-  return vals.map((v, i) => {
-    const x = (i / (days - 1)) * 300
-    const y = max === min ? 40 : 62 - ((v - min) / (max - min)) * 50
-    return [x, y]
-  })
-})
-const sparkLine = computed(() => 'M' + sparkPoints.value.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' L'))
-const sparkArea = computed(() => `${sparkLine.value} L300,70 L0,70 Z`)
-
-const formatSteps = (steps) => {
-  const c = { pass: 0, fail: 0, blocked: 0, na: 0, total: 0 }
-  for (const s of steps) {
-    const st = s.execution_status
-    if (st === 'Passed') c.pass++
-    else if (st === 'Failed') c.fail++
-    else if (st === 'Blocked') c.blocked++
-    else if (st === 'N/A') c.na++
-    else continue
-    c.total++
-  }
-  return c
-}
-
-const fetchTestCase = async () => {
+const loadAll = async () => {
+  loading.value = true
   try {
-    const res = await fetch(`${API}/TestCases/${testCaseId}`)
-    if (res.ok) testCase.value = await res.json()
-  } catch (err) {
-    console.error('Failed to load test case:', err)
-  }
-}
-
-const fetchRows = async (silent = false) => {
-  if (!silent) loading.value = true
-  try {
-    const [assignRes, runsRes, usersRes, feedbacksRes] = await Promise.all([
-      fetch(`${API}/TestAssignments`),
-      fetch(`${API}/TestRuns/by-testcase/${testCaseId}`),
-      fetch(`${API}/Users`),
-      fetch(`${API}/TestFeedbacks`),
+    const caseRes = await fetch(`${API}/TestCases/${testCaseId}`).catch(() => null)
+    testCase.value = caseRes && caseRes.ok ? await caseRes.json() : null
+    if (!testCase.value) error.value = 'Test case not found or the API cannot be reached.'
+    const [, u, a] = await Promise.all([
+      loadRuns(),
+      getList(`${API}/Users`),
+      getList(`${API}/TestAssignments`),
     ])
-
-    const assignedAll = (assignRes.ok ? await assignRes.json() : []).filter((a) => String(a.test_case_id) === String(testCaseId))
-    const seen = new Set()
-    const assigned = assignedAll.filter((a) => (seen.has(a.user_id) ? false : seen.add(a.user_id)))
-
-    const runs = runsRes.ok ? await runsRes.json() : []
-    allRuns.value = runs
-    const lastRunByUser = {}
-    for (const r of runs) if (!(r.executed_by in lastRunByUser)) lastRunByUser[r.executed_by] = r
-
-    const runsByTester = {}
-    for (const r of runs) {
-      if (!runsByTester[r.executed_by]) runsByTester[r.executed_by] = []
-      runsByTester[r.executed_by].push(r)
-    }
-    const runNumberById = {}
-    Object.values(runsByTester).forEach((list) => {
-      list.slice().sort((a, b) => a.id - b.id).forEach((r, idx) => { runNumberById[r.id] = idx + 1 })
-    })
-    const runNumber = (id) => (id in runNumberById ? runNumberById[id] : id)
-
-    const users = usersRes.ok ? await usersRes.json() : []
-    const nameById = {}
-    users.forEach((u) => { nameById[u.id] = u.full_name })
-
-    const feedbacksAll = feedbacksRes.ok ? await feedbacksRes.json() : []
-    const feedbackByRunId = {}
-    for (const f of feedbacksAll) feedbackByRunId[String(f.run_id)] = f
-
-    rows.value = await Promise.all(assigned.map(async (a) => {
-      const run = lastRunByUser[a.user_id]
-      let steps = []
-      if (run) {
-        const r = await fetch(`${API}/ExecutionSteps/by-run/${run.id}`)
-        steps = r.ok ? await r.json() : []
-      }
-      const fb = run ? feedbackByRunId[String(run.id)] : null
-      return {
-        user_id: a.user_id,
-        user_name: a.user_name || nameById[a.user_id] || `User #${a.user_id}`,
-        department: a.department || users.find((u) => u.id === a.user_id)?.department || null,
-        run_id: run ? run.id : null,
-        run_number: run ? runNumber(run.id) : null,
-        run_status: run ? run.run_status : 'Not Started',
-        started_at: run ? run.started_at : null,
-        counts: formatSteps(steps),
-        catatan: fb?.comment || '',
-      }
-    }))
-
-    const closed = runs.filter((r) => r.run_status !== 'In Progress' && r.completed_at)
-    await Promise.all(closed.filter((r) => !(r.id in stepsCache)).map(async (r) => {
-      const x = await fetch(`${API}/ExecutionSteps/by-run/${r.id}`)
-      stepsCache[r.id] = x.ok ? await x.json() : []
-    }))
-    closedHistory.value = closed
-      .slice()
-      .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))
-      .map((r) => {
-        const a = assigned.find((x) => x.user_id === r.executed_by)
-        const fb = feedbackByRunId[String(r.id)]
-        return {
-          user_id: r.executed_by,
-          user_name: a?.user_name || nameById[r.executed_by] || `User #${r.executed_by}`,
-          department: a?.department || users.find((u) => u.id === r.executed_by)?.department || null,
-          run_id: r.id,
-          run_number: runNumber(r.id),
-          run_status: r.run_status,
-          started_at: r.started_at,
-          counts: formatSteps(stepsCache[r.id]),
-          steps: stepsCache[r.id] || [],
-          catatan: fb?.comment || '',
-        }
-      })
-  } catch (err) {
-    console.error('Failed to load test runs:', err)
+    users.value = Array.isArray(u) ? u : []
+    assignments.value = Array.isArray(a) ? a : []
   } finally {
     loading.value = false
   }
 }
 
-// Closed run -> open its report page (with the PDF download) instead of a popup
-const openReport = (t) => {
-  router.push({
-    name: 'TestRunReport',
-    params: { id: testCase.value?.id ?? testCaseId, runId: t.run_id },
+onMounted(loadAll)
+
+// ---------- helpers ----------
+const runCode = (id) => 'RUN-' + String(id).padStart(3, '0')
+const formatDateTime = (d) => (d ? new Date(d).toLocaleString() : '-')
+const initials = (name = '') => {
+  const p = String(name).trim().split(/\s+/).filter(Boolean)
+  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?'
+}
+const statusColor = (s) => {
+  switch (s) {
+    case 'Passed': return 'success'
+    case 'Failed': return 'error'
+    case 'Blocked': return 'warning'
+    case 'In Progress': return 'indigo-darken-2'
+    default: return 'grey'
+  }
+}
+const isFinished = (r) => ['Passed', 'Failed', 'Blocked'].includes(r.run_status)
+const goBack = () => router.push({ name: 'TestCases' })
+
+// ---------- summary + filters ----------
+const count = (s) => runs.value.filter((r) => r.run_status === s).length
+const summary = computed(() => [
+  { label: 'Total runs', value: runs.value.length, color: '#0f766e', filter: 'All' },
+  { label: 'Passed', value: count('Passed'), color: '#2e7d32', filter: 'Passed' },
+  { label: 'Failed', value: count('Failed') + count('Blocked'), color: '#c62828', filter: 'Failed' },
+  { label: 'In progress', value: count('In Progress'), color: '#4f46e5', filter: 'In Progress' },
+])
+
+const search = ref('')
+const statusFilter = ref('All')
+const statusOptions = ['All', 'In Progress', 'Passed', 'Failed', 'Blocked']
+const hasFilters = computed(() => !!(search.value || '').trim() || statusFilter.value !== 'All')
+const clearFilters = () => { search.value = ''; statusFilter.value = 'All' }
+
+const filteredRuns = computed(() => {
+  const q = (search.value || '').trim().toLowerCase()
+  return runs.value.filter((r) => {
+    if (statusFilter.value !== 'All' && r.run_status !== statusFilter.value) return false
+    if (q && !`${runCode(r.id)} ${r.user_name || ''}`.toLowerCase().includes(q)) return false
+    return true
   })
-}
+})
 
-const rowClick = (t) => {
-  if (isClosed(t)) openReport(t)
-  else startExecutionFor(t)
-}
+const page = ref(1)
+const pageSize = ref(10)
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredRuns.value.length / pageSize.value)))
+const pagedRuns = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return filteredRuns.value.slice(start, start + pageSize.value)
+})
+const rangeStart = computed(() => (filteredRuns.value.length ? (page.value - 1) * pageSize.value + 1 : 0))
+const rangeEnd = computed(() => Math.min(page.value * pageSize.value, filteredRuns.value.length))
+watch([search, statusFilter, pageSize], () => { page.value = 1 })
+watch(pageCount, (n) => { if (page.value > n) page.value = n })
 
-// Open the step-by-step execution as its own page
-const startExecutionFor = (tester) => {
+// ---------- start a run ----------
+const pickerDialog = ref(false)
+
+const userById = (id) => users.value.find((u) => u.id === id)
+
+const assignedTesters = computed(() => {
+  const seen = new Set()
+  return assignments.value
+    .filter((a) => a.test_case_id === testCaseId)
+    .map((a) => {
+      const u = userById(a.user_id)
+      return u ? { user_id: u.id, user_name: u.full_name, department: a.department || u.department || '' } : null
+    })
+    .filter((t) => t && !seen.has(t.user_id) && seen.add(t.user_id))
+})
+
+const pickerTesters = computed(() =>
+  assignedTesters.value.length
+    ? assignedTesters.value
+    : users.value.map((u) => ({ user_id: u.id, user_name: u.full_name, department: u.department || '' }))
+)
+
+const runAs = (tester) => {
+  pickerDialog.value = false
   router.push({
     name: 'TestExecution',
-    params: { id: testCase.value?.id ?? testCaseId },
+    params: { id: testCaseId },
     query: {
       run_as: tester.user_id,
       run_as_name: tester.user_name,
@@ -489,161 +327,80 @@ const startExecutionFor = (tester) => {
   })
 }
 
-let timer = null
-onMounted(async () => {
-  await fetchTestCase()
-  await fetchRows()
-  timer = setInterval(() => fetchRows(true), 20000)
-})
-onUnmounted(() => clearInterval(timer))
+const startRun = () => {
+  const list = pickerTesters.value
+  if (!list.length) {
+    error.value = 'There are no users in the system to run this test as. Add a user first.'
+    return
+  }
+  // one possible tester: no need to ask
+  if (list.length === 1) return runAs(list[0])
+  pickerDialog.value = true
+}
+
+// ---------- report ----------
+const openReport = (r) => {
+  if (!isFinished(r)) return
+  router.push({ name: 'TestRunReport', params: { id: testCaseId, runId: r.id } })
+}
+
+// ---------- delete ----------
+const deleteDialog = ref(false)
+const deleteTarget = ref(null)
+const deleting = ref(false)
+
+const confirmDelete = (r) => { deleteTarget.value = r; deleteDialog.value = true }
+
+const deleteRun = async () => {
+  if (!deleteTarget.value) return
+  deleting.value = true
+  try {
+    const res = await fetch(`${API}/TestRuns/${deleteTarget.value.id}`, { method: 'DELETE' })
+    if (!res.ok && res.status !== 404) {
+      error.value = `Could not delete the run (HTTP ${res.status}).`
+    } else {
+      await loadRuns()
+    }
+  } catch (e) {
+    error.value = 'Cannot connect to the API.'
+  } finally {
+    deleting.value = false
+    deleteDialog.value = false
+    deleteTarget.value = null
+  }
+}
 </script>
 
 <style scoped>
-.runs-page {
-  background: rgba(var(--v-theme-on-surface), 0.05);
-  min-height: 100vh;
-  color: rgb(var(--v-theme-on-surface));
-  font-family: 'Inter', 'Segoe UI', -apple-system, sans-serif;
-}
-.page-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 28px; background: rgb(var(--v-theme-surface)); border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-.page-title { font-size: 1.15rem; color: rgb(var(--v-theme-on-surface)); }
-.page-crumb { font-size: 0.82rem; color: rgba(var(--v-theme-on-surface), 0.7); display: flex; gap: 6px; align-items: center; }
-.crumb-code { font-weight: 700; color: #3b82f6; } /* Ditukar kepada warna biru */
-.crumb-sep { color: #cbd5e1; }
-.page-body { max-width: 1200px; margin: 0 auto; padding: 24px 28px 48px; }
-
-/* tiles */
-.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px; }
-@media (max-width: 900px) { .tiles { grid-template-columns: 1fr; } }
-.tile {
-  background: rgb(var(--v-theme-surface)); border-radius: 12px; padding: 20px 22px; min-height: 178px;
-  display: flex; align-items: center; gap: 20px; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.tile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
-}
-.tile-visual { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
-.tile-visual.gauge { width: 160px; height: 90px; margin-top: 28px; align-self: flex-start; }
-.donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.donut-label { font-size: 0.7rem; color: rgba(var(--v-theme-on-surface), 0.7); font-weight: 600; letter-spacing: 0.05em; }
-.donut-num { font-size: 2.1rem; font-weight: 700; line-height: 1.1; color: rgb(var(--v-theme-on-surface)); }
-.donut-sub { font-size: 0.7rem; color: #10b981; font-weight: 600; margin-top: 2px; }
-.tile-meta { min-width: 0; }
-.meta-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; color: rgba(var(--v-theme-on-surface), 0.7); margin-bottom: 10px; }
-.meta-line { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; line-height: 1.4; margin-bottom: 8px; color: rgb(var(--v-theme-on-surface)); }
-.meta-line b { font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
-
-.tile-closed { flex-direction: column; align-items: stretch; padding: 20px 0 0; gap: 0; overflow: hidden; }
-.closed-top { text-align: center; padding: 0 20px; }
-.closed-num { font-size: 2.1rem; font-weight: 700; line-height: 1.15; color: rgb(var(--v-theme-on-surface)); }
-.closed-sub { font-size: 0.75rem; font-weight: 600; color: #10b981; margin-top: 2px; }
-.spark { width: 100%; height: 70px; margin-top: auto; display: block; }
-
-/* Tabs Moden (Gaya Pil / Pill Buttons) */
-.tabs { 
-  display: flex; 
-  gap: 12px; 
-  border-bottom: none; 
-  margin-bottom: 20px; 
-}
-
-.tab {
-  background: rgb(var(--v-theme-surface)); 
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); 
-  padding: 8px 18px; 
-  font-size: 0.8rem; 
-  font-weight: 600; 
-  letter-spacing: 0.04em;
-  color: rgba(var(--v-theme-on-surface), 0.7); 
-  cursor: pointer; 
-  border-radius: 8px; 
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.tab:hover {
-  background: rgba(var(--v-theme-on-surface), 0.05);
+.page-heading {
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: rgb(var(--v-theme-on-surface));
 }
+.page-subheading { color: rgba(var(--v-theme-on-surface), 0.7); }
 
-.tab.on { 
-  background: rgba(59, 130, 246, 0.10); 
-  color: #3b82f6; 
-  border-color: rgba(59, 130, 246, 0.30); 
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+.table-header-row { background: linear-gradient(90deg, #760f6f 0%, #641f61 100%); }
+.runs-table th {
+  font-size: 0.75rem !important;
+  color: #ffffff !important;
+  text-transform: uppercase;
+  font-weight: 700;
+  background: transparent !important;
 }
+.main-table-card { border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+.run-row { cursor: pointer; }
+.run-row:hover { background: rgba(118, 15, 111, 0.06); }
+.table-footer { border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
 
-.tab-count { 
-  background: rgba(0, 0, 0, 0.06);
-  padding: 2px 6px;
-  border-radius: 6px;
-  margin-left: 6px;
-  font-size: 0.72rem;
-  color: rgba(var(--v-theme-on-surface), 0.7); 
-}
+.summary-card { cursor: pointer; transition: border-color 0.15s; }
+.summary-card:hover,
+.summary-active { border-color: #0f766e !important; }
 
-.tab.on .tab-count { 
-  background: rgba(59, 130, 246, 0.18);
-  color: #3b82f6; 
+.picker-header { background: linear-gradient(90deg, #760f6f 0%, #641f61 100%); }
+.tester-card {
+  cursor: pointer;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  transition: background-color 0.15s, border-color 0.15s;
 }
-
-/* filters */
-.filter-bar {
-  display: flex; align-items: center; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 10px; margin-bottom: 20px; height: 46px; overflow: hidden;
-}
-.filter-search { flex: 1; padding: 0 14px; }
-.filter-select { max-width: 200px; padding: 0 14px; border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
-.filter-bar :deep(.v-field__input) { font-size: 0.85rem; min-height: 44px; padding-top: 0; padding-bottom: 0; }
-.filter-bar :deep(.v-field__prepend-inner) { padding-top: 0; align-items: center; }
-.filter-bar :deep(.v-field__outline) { display: none; }
-
-/* group + table */
-.group-head {
-  display: flex; align-items: center; gap: 12px; background: rgba(59, 130, 246, 0.10);
-  padding: 12px 16px; border-radius: 10px 10px 0 0; border: 1px solid rgba(59, 130, 246, 0.30); border-bottom: none;
-}
-.group-flag { width: 28px; height: 26px; background: rgba(59, 130, 246, 0.18); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
-.group-name { color: var(--acc-blue-deep, #1e40af); font-size: 1rem; }
-.group-right { margin-left: auto; font-size: 0.82rem; color: #3b82f6; }
-.badge { font-size: 0.68rem; font-weight: 700; color: #fff; padding: 3px 8px; border-radius: 6px; }
-.b-green { background: #10b981; }
-.b-orange, .p-high, .p-critical { background: #f97316; }
-.p-medium { background: #f59e0b; }
-.p-low { background: #10b981; }
-
-.table-container { background: rgb(var(--v-theme-surface)); border-radius: 0 0 10px 10px; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); overflow: hidden; }
-.runs-table { width: 100%; border-collapse: collapse; }
-.runs-table thead th {
-  text-align: left; font-size: 0.78rem; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.7);
-  padding: 12px 16px; background: rgba(var(--v-theme-on-surface), 0.05); border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-.run-row { cursor: pointer; transition: background 0.15s ease; }
-.run-row:hover { background: rgba(var(--v-theme-on-surface), 0.05); }
-.run-row td { padding: 14px 16px; border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); font-size: 0.85rem; vertical-align: middle; }
-.run-icon { width: 32px; height: 32px; background: rgba(59, 130, 246, 0.10); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.run-name { font-weight: 600; color: rgb(var(--v-theme-on-surface)); }
-.run-sub { font-size: 0.72rem; color: rgba(var(--v-theme-on-surface), 0.5); margin-top: 1px; }
-.state { display: inline-flex; align-items: center; gap: 6px; }
-.tag { display: inline-flex; align-items: center; background: rgba(var(--v-theme-on-surface), 0.05); color: rgba(var(--v-theme-on-surface), 0.7); font-weight: 500; font-size: 0.75rem; padding: 3px 10px; border-radius: 6px; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
-.avatar {
-  width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff;
-  font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-}
-.bar { flex: 1; height: 10px; background: rgba(148, 163, 184, 0.3); border-radius: 5px; display: flex; overflow: hidden; }
-.bar-seg { height: 100%; transition: width 0.3s; }
-.pct { width: 42px; font-size: 0.82rem; color: rgb(var(--v-theme-on-surface)); text-align: right; }
-.run-btn { letter-spacing: 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2); }
-.back-btn { border-radius: 8px; }
-.refresh-btn { border-radius: 8px; }
-
-.empty { text-align: center; padding: 64px 0; background: rgb(var(--v-theme-surface)); border-radius: 12px; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
-.empty-title { font-weight: 700; font-size: 1rem; margin-top: 10px; color: rgb(var(--v-theme-on-surface)); }
-.empty-sub { color: rgba(var(--v-theme-on-surface), 0.7); font-size: 0.85rem; }
+.tester-card:hover { background: rgba(15, 118, 110, 0.08); border-color: #0f766e; }
 </style>

@@ -103,7 +103,7 @@
               <div class="d-flex align-center" style="gap: 12px;">
                 <v-icon color="teal-darken-3" size="22">mdi-format-list-numbered-rtl</v-icon>
                 <div class="text-body-2 font-weight-medium text-teal-darken-4">
-                  <b>Execution guide:</b> Complete one step at a time. Record Pass or Fail and submit it before the next step unlocks.
+                  <b>Execution guide:</b> Complete one step at a time. Record the result (Passed, Failed or Blocked), add remarks or attachments if you need to, and submit it before the next step unlocks.
                 </div>
               </div>
             </v-card>
@@ -184,13 +184,42 @@
               <v-col cols="12" sm="6">
                 <v-select
                   v-model="activeStep.execution_status"
-                  label="Result: Pass or Fail *"
+                  label="Result *"
                   :items="statusOptions"
                   variant="outlined"
                   density="comfortable"
                   hide-details
                   class="rounded-xl"
                 ></v-select>
+              </v-col>
+              <v-col cols="12">
+                <v-textarea
+                  v-model="activeStep.remarks"
+                  label="Remarks (optional)"
+                  variant="outlined"
+                  density="comfortable"
+                  rows="2"
+                  class="rounded-xl"
+                  hint="You can add remarks for any result, including Passed, e.g. what you observed."
+                  persistent-hint
+                ></v-textarea>
+              </v-col>
+              <v-col cols="12">
+                <v-file-input
+                  v-model="activeStep.files"
+                  multiple
+                  chips
+                  counter
+                  show-size
+                  label="Attachments (optional)"
+                  variant="outlined"
+                  density="comfortable"
+                  prepend-icon=""
+                  prepend-inner-icon="mdi-paperclip"
+                  class="rounded-xl"
+                  hint="Add a screenshot or file as evidence, for any result including Passed."
+                  persistent-hint
+                ></v-file-input>
               </v-col>
               <v-col cols="12" class="d-flex align-center justify-end mt-2">
                 <v-btn
@@ -213,6 +242,27 @@
               <v-btn variant="outlined" color="indigo-darken-3" size="small" class="font-weight-bold rounded-lg text-capitalize px-4" @click="editStep(activeStep)">
                 <v-icon size="small" class="mr-1">mdi-pencil</v-icon> Edit Result
               </v-btn>
+            </div>
+
+            <!-- Remarks (any result) -->
+            <div v-if="activeStep.stage === 'done' && activeStep.remarks" class="mt-4">
+              <div class="text-caption font-weight-bold text-slate-500 uppercase-label mb-1">Remarks</div>
+              <div class="text-body-2" style="white-space: pre-wrap;">{{ activeStep.remarks }}</div>
+            </div>
+
+            <!-- Attachments already uploaded for this step -->
+            <div v-if="activeStep.stage !== 'pending' && activeStep.attachments?.length" class="mt-4">
+              <div class="text-caption font-weight-bold text-slate-500 uppercase-label mb-2">Attachments ({{ activeStep.attachments.length }})</div>
+              <div class="d-flex flex-wrap" style="gap: 8px;">
+                <template v-for="a in activeStep.attachments" :key="a.id">
+                  <a v-if="a.is_image" :href="a.url" target="_blank" rel="noopener" class="att-thumb" :title="a.file_name">
+                    <img :src="a.url" :alt="a.file_name" />
+                  </a>
+                  <a v-else :href="a.url" target="_blank" rel="noopener" class="att-file">
+                    <v-icon size="14">mdi-paperclip</v-icon> {{ a.file_name }}
+                  </a>
+                </template>
+              </div>
             </div>
           </v-card>
 
@@ -312,21 +362,10 @@
                     class="rounded-xl mb-4"
                   ></v-select>
                 </v-col>
-                <v-col cols="12" sm="6">
-                  <v-select
-                    v-model="feedbackRating"
-                    label="Rating (1 to 5)"
-                    :items="[1, 2, 3, 4, 5]"
-                    variant="outlined"
-                    density="comfortable"
-                    hide-details
-                    class="rounded-xl mb-4"
-                  ></v-select>
-                </v-col>
                 <v-col cols="12">
                   <v-textarea
                     v-model="feedbackComment"
-                    label="Overall Feedback"
+                    label="Overall Feedback / Remarks (optional)"
                     variant="outlined"
                     density="comfortable"
                     rows="3"
@@ -363,7 +402,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { generateRunReportPdf } from '@/utils/runReportPdf'
-import { withAttachments, embedImages } from '@/utils/runReportAttachments'
+import { withAttachments, embedImages, loadAttachmentMap } from '@/utils/runReportAttachments'
 
 const API_BASE = 'https://localhost:7049/api'
 
@@ -374,6 +413,7 @@ const goBack = () => router.push({ name: 'TestCaseRuns', params: { id: route.par
 
 const stepsLoading = ref(false)
 const activeCase = ref(null)
+const activeCycle = ref(null)
 const activeRun = ref(null)
 const activeAssignmentId = ref(null)
 const steps = ref([])
@@ -382,7 +422,6 @@ const submitting = ref(false)
 const runError = ref('')
 const runCompleted = ref(false)
 
-const feedbackRating = ref(5)
 const feedbackComment = ref('')
 const overallResult = ref('Passed')
 
@@ -406,7 +445,7 @@ const defectFormValid = computed(() =>
   !!defectForm.value.comments?.trim()
 )
 
-const statusOptions = ['Passed', 'Failed', 'Blocked', 'N/A']
+const statusOptions = ['Passed', 'Failed', 'Blocked']
 
 const getStatusColor = (status) => {
   switch (status) {
@@ -423,9 +462,16 @@ const getExecutionStatusColor = (status) => {
     case 'Passed': return 'success'
     case 'Failed': return 'error'
     case 'Blocked': return 'warning'
-    case 'N/A': return 'grey'
     default: return 'indigo'
   }
+}
+
+// Local time without a trailing 'Z'. The API stores created_at with DateTime.Now (local), so
+// started_at / completed_at must be local as well, otherwise they are 8 hours off.
+const localIso = () => {
+  const d = new Date()
+  const p = (x) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
 const formatDateTime = (d) => (d ? new Date(d).toLocaleString() : '-')
@@ -498,35 +544,78 @@ const ensureAssignment = async (testCase) => {
   }
 }
 
+// Use the run_as given in the URL, else the logged-in user; accept it only if that user exists.
+const resolveTesterId = async (payload) => {
+  try {
+    const res = await fetch(`${API_BASE}/Users`)
+    const users = res.ok ? await res.json() : []
+    const candidates = [Number(payload.run_as), Number(localStorage.getItem('uat_user_id'))].filter((n) => n > 0)
+    for (const id of candidates) {
+      const u = users.find((x) => x.id === id)
+      if (u) {
+        if (!payload.run_as_name) payload.run_as_name = u.full_name
+        if (!payload.department) payload.department = u.department || null
+        return id
+      }
+    }
+  } catch (err) {
+    console.error('Failed to resolve tester:', err)
+  }
+  return null
+}
+
 const open = async (payload) => {
   activeCase.value = payload
   runCompleted.value = false
   stepsLoading.value = true
   runError.value = ''
-  feedbackRating.value = 5
   feedbackComment.value = ''
   overallResult.value = 'Passed'
 
   try {
+    // The run must belong to a real user, otherwise the API fails on the executed_by foreign key.
+    const testerId = await resolveTesterId(payload)
+    if (!testerId) {
+      throw new Error('Tester not specified. Open this test case from the Test Cases / Runs list and choose the tester to run as.')
+    }
+    payload.run_as = testerId
+
     const assignmentId = await ensureAssignment(payload)
     activeAssignmentId.value = assignmentId
 
-    const runRes = await fetch(`${API_BASE}/TestRuns`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        test_case_id: payload.id,
-        test_assignment_id: assignmentId,
-        executed_by: payload.run_as,
-        run_status: 'In Progress',
-        started_at: new Date().toISOString(),
-      }),
-    })
-    if (!runRes.ok) {
-      const body = await runRes.text().catch(() => '')
-      throw new Error(`Could not create test run (HTTP ${runRes.status}). ${body.slice(0, 300)}`)
+    // Continue this tester's unfinished run instead of creating a new one on every open / refresh
+    let resumed = null
+    try {
+      const existingRes = await fetch(`${API_BASE}/TestRuns/by-testcase/${payload.id}`)
+      const existingRuns = existingRes.ok ? await existingRes.json() : []
+      resumed = existingRuns
+        .filter((r) => r.executed_by === payload.run_as && r.run_status === 'In Progress')
+        .sort((a, b) => b.id - a.id)[0] || null
+    } catch (err) {
+      console.error('Could not check for an unfinished run:', err)
     }
-    activeRun.value = await parseJsonSafe(runRes)
+
+    if (resumed) {
+      const fullRes = await fetch(`${API_BASE}/TestRuns/${resumed.id}`)
+      activeRun.value = fullRes.ok ? await parseJsonSafe(fullRes) : resumed
+    } else {
+      const runRes = await fetch(`${API_BASE}/TestRuns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          test_case_id: payload.id,
+          test_assignment_id: assignmentId,
+          executed_by: payload.run_as,
+          run_status: 'In Progress',
+          started_at: localIso(),
+        }),
+      })
+      if (!runRes.ok) {
+        const body = await runRes.text().catch(() => '')
+        throw new Error(`Could not create test run (HTTP ${runRes.status}). ${body.slice(0, 300)}`)
+      }
+      activeRun.value = await parseJsonSafe(runRes)
+    }
     if (!activeRun.value?.id) throw new Error('Test run was created but the server returned no run id.')
 
     const stepsRes = await fetch(`${API_BASE}/TestSteps?testCaseId=${payload.id}`)
@@ -546,8 +635,33 @@ const open = async (payload) => {
         saving: false,
         has_defect: false,
         defect: null,
+        remarks: '',
+        files: [],
+        attachments: [],
       }))
     viewingStepIndex.value = 0
+
+    // Resumed run: put back the steps that were already saved
+    if (resumed) {
+      const savedRes = await fetch(`${API_BASE}/ExecutionSteps/by-run/${activeRun.value.id}`)
+      const saved = savedRes.ok ? await savedRes.json() : []
+      for (const es of saved) {
+        const step = steps.value.find((x) => x.sequence_order === es.sequence_order)
+        if (!step) continue
+        step.execution_step_id = es.id
+        step.execution_status = es.execution_status
+        step.ticket_id = es.ticket_id || null
+        step.has_defect = !!es.has_defect
+        step.remarks = es.comments || ''
+        step.defect = es.has_defect
+          ? { actual_result: es.actual_result || '', severity: es.severity || 'Medium', ticket_id: es.ticket_id || '', comments: es.comments || '' }
+          : null
+        step.stage = 'done'
+        await refreshAttachments(step)
+      }
+      const firstOpen = steps.value.findIndex((x) => x.stage !== 'done')
+      viewingStepIndex.value = firstOpen === -1 ? Math.max(0, steps.value.length - 1) : firstOpen
+    }
   } catch (err) {
     console.error('Failed to start test run:', err)
     runError.value = err.message || 'Failed to start test run.'
@@ -564,6 +678,16 @@ onMounted(async () => {
     if (res.ok) tc = await res.json()
   } catch (err) {
     console.error('Failed to load test case:', err)
+  }
+  // Test Cycle of this test case, so it can be printed in the PDF report
+  try {
+    if (tc?.cycle_id) {
+      const cRes = await fetch(`${API_BASE}/TestCycles`)
+      const cycles = cRes.ok ? await cRes.json() : []
+      activeCycle.value = cycles.find((c) => String(c.id) === String(tc.cycle_id)) || null
+    }
+  } catch (err) {
+    console.error('Failed to load test cycle:', err)
   }
   await open({
     id: tc?.id ?? Number(id),
@@ -596,7 +720,7 @@ const submitStep = async (step, idx) => {
       has_defect: step.has_defect || false,
       severity: step.defect?.severity || null,
       ticket_id: step.defect?.ticket_id || step.ticket_id || null,
-      comments: step.defect?.comments || null,
+      comments: step.defect?.comments || step.remarks || null,
       required_role: step.required_role || null,
       crt_user_id: String(activeCase.value.run_as || ''),
     }
@@ -622,6 +746,12 @@ const submitStep = async (step, idx) => {
       // the API assigns DEF-001, DEF-002 ... as soon as a step is saved as Failed
       if (saved?.ticket_id) step.ticket_id = saved.ticket_id
       step.stage = 'done'
+
+      // remarks + attachments are allowed for every result, including Passed
+      const upErr = await uploadFiles(step.execution_step_id, step.files)
+      step.files = []
+      await refreshAttachments(step)
+      if (upErr) runError.value = upErr
 
       if (activeRun.value?.id) {
         activeRun.value.run_status = 'In Progress'
@@ -651,6 +781,36 @@ const submitStep = async (step, idx) => {
   }
 }
 
+const toFileList = (v) => (Array.isArray(v) ? v : v ? [v] : []).filter((f) => f instanceof File)
+
+// returns an error message, or '' when everything uploaded
+const uploadFiles = async (executionStepId, fileValue) => {
+  const files = toFileList(fileValue)
+  if (!executionStepId || !files.length) return ''
+  for (const file of files) {
+    const formData = new FormData()
+    formData.append('execution_step_id', executionStepId)
+    formData.append('file', file)
+    const upRes = await fetch(`${API_BASE}/ExecutionAttachments/upload`, { method: 'POST', body: formData })
+    if (!upRes.ok) {
+      const body = await upRes.text().catch(() => '')
+      return `Step saved, but "${file.name}" was not uploaded (HTTP ${upRes.status}). ${body.slice(0, 200)}`
+    }
+  }
+  return ''
+}
+
+const refreshAttachments = async (step) => {
+  if (!step.execution_step_id) return
+  try {
+    const key = String(step.execution_step_id)
+    const map = Object.fromEntries(await loadAttachmentMap([key]))
+    step.attachments = map[key] || []
+  } catch (err) {
+    console.error('Failed to load attachments:', err)
+  }
+}
+
 const openInlineDefect = (step) => {
   activeDefectStepId.value = step.test_step_id
   defectForm.value = {
@@ -660,7 +820,7 @@ const openInlineDefect = (step) => {
     severity: step.defect?.severity || 'Medium',
     ticket_id: step.defect?.ticket_id || step.ticket_id || '',
     attachment: null,
-    comments: step.defect?.comments || '',
+    comments: step.defect?.comments || step.remarks || '',
   }
 }
 
@@ -698,21 +858,9 @@ const saveDefect = async (step) => {
     const ticketId = savedStep?.ticket_id || defectForm.value.ticket_id || ''
 
     
-    const att = defectForm.value.attachment
-    const files = (Array.isArray(att) ? att : att ? [att] : []).filter((f) => f instanceof File)
-
-    let uploadError = ''
-    for (const file of files) {
-      const formData = new FormData()
-      formData.append('execution_step_id', step.execution_step_id)
-      formData.append('file', file)
-      const upRes = await fetch(`${API_BASE}/ExecutionAttachments/upload`, { method: 'POST', body: formData })
-      if (!upRes.ok) {
-        const body = await upRes.text().catch(() => '')
-        uploadError = `Defect saved, but "${file.name}" was not uploaded (HTTP ${upRes.status}). ${body.slice(0, 200)}`
-        break
-      }
-    }
+    const files = toFileList(defectForm.value.attachment)
+    const uploadError = await uploadFiles(step.execution_step_id, files)
+    await refreshAttachments(step)
 
     step.has_defect = true
     step.ticket_id = ticketId || step.ticket_id
@@ -725,6 +873,7 @@ const saveDefect = async (step) => {
       comments: defectForm.value.comments,
       attachment: files.map((f) => f.name).join(', ') || step.defect?.attachment || null,
     }
+    step.remarks = defectForm.value.comments || step.remarks
     activeDefectStepId.value = null
     if (uploadError) runError.value = uploadError
   } catch (err) {
@@ -738,7 +887,7 @@ const submitRun = async () => {
   submitting.value = true
   runError.value = ''
   try {
-    const completedAtIso = new Date().toISOString()
+    const completedAtIso = localIso()
     const runPut = await fetch(`${API_BASE}/TestRuns/${activeRun.value.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -759,7 +908,6 @@ const submitRun = async () => {
         test_case_id: activeCase.value.id,
         run_id: activeRun.value.id,
         user_name: activeCase.value.run_as_name,
-        rating: feedbackRating.value,
         comment: feedbackComment.value,
       }),
     })
@@ -795,6 +943,7 @@ const generateReport = async () => {
   const stepsForPdf = await embedImages(await withAttachments(steps.value))
   generateRunReportPdf({
     testCase: activeCase.value,
+    cycle: activeCycle.value,
     run: activeRun.value,
     testerName: activeCase.value?.run_as_name,
     department: activeCase.value?.department,
@@ -806,6 +955,11 @@ const generateReport = async () => {
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.att-thumb { display: block; width: 84px; height: 84px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+.att-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.att-file { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; text-decoration: none; color: rgb(var(--v-theme-on-surface)); border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+.att-file:hover { background: rgba(var(--v-theme-on-surface), 0.05); }
 
 .execution-layout {
   background: rgb(var(--v-theme-background));

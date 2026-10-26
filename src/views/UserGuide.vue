@@ -133,7 +133,7 @@ const sections = [
       { title: 'Testers are assigned', detail: 'Each test case is assigned to its testers (the default testers are added automatically). Every tester runs the same steps independently.', role: 'admin' },
       { title: 'Run your own Test Run', detail: 'Open Test Cases, find the test case assigned to you and click Start. You get your own Run ID (RUN-001, RUN-002 …) and your own results. Other testers\' results never overwrite yours.', role: 'tester' },
       { title: 'Log defects as you go', detail: 'Do each step one at a time. When a step fails, log a defect for it; a ticket ID is generated for you.', role: 'tester' },
-      { title: 'Submit the run and get your report', detail: 'After the last step, give an overall result, a rating and your feedback, then submit. You can download the run report as a PDF.', role: 'tester' },
+      { title: 'Submit the run and get your report', detail: 'After the last step, give an overall result and any feedback or remarks, then submit. You can download the run report as a PDF.', role: 'tester' },
       { title: 'Admin reviews and approves', detail: 'The admin checks each tester\'s results, defects and feedback in Feedback and the test case details, then chooses Approve or Not Approve.', role: 'admin' }
     ],
     tip: 'Menu: Dashboard, Test Cases (with a Test Cycles tab), Feedback, Audit Log, User Guide, Settings and Profile.'
@@ -148,7 +148,7 @@ const sections = [
       { title: 'Check overall status', detail: 'The top cards show Total Test Cases, the Pass Rate (with Pass, Fail and Pending counts) and Total Passed.' },
       { title: 'Jump to a filtered list', detail: 'Click the Total Test Cases or Total Passed card, or the Pass, Fail or Pending count, to open the Test Cases page already filtered by that status.' },
       { title: 'Compare priorities', detail: 'Test Case Performance by Priority shows how many test cases you have at each priority: Critical, High, Medium and Low.' },
-      { title: 'See the latest test cases', detail: 'Recent Test Cases lists the five newest ones with their ID, department, priority, status and assigned testers. Click View All to open the full list.' },
+      { title: 'See the latest test cases', detail: 'Recent Test Cases lists the newest test cases with their ID, cycle, priority, result and testers (extra testers show as +N; hover to see them all). Use the filters and the page controls to browse the full list.' },
       { title: 'Create a test case quickly', detail: 'Click New Test Case at the top right to go to the Test Cases page.', role: 'admin' },
       { title: 'Use your profile menu', detail: 'Click your avatar at the top right to edit your profile, open Settings, open My Test Cases or log out.' }
     ]
@@ -162,9 +162,9 @@ const sections = [
     steps: [
       { title: 'Open your test case', detail: 'Go to Test Cases and click the row of the test case (or the people icon "View tester runs"). This opens the Runs & results page.' },
       { title: 'Start your run', detail: 'Find your own name in the list and click Start. If you already have a run, the button says Continue (unfinished) or Run again (finished).' },
-      { title: 'Execute one step at a time', detail: 'Read the step and its Expected Result, choose Pass or Fail, then click Submit Step. The next step stays locked until the current one is saved. Use the Previous and Next arrows to review steps you already did.' },
+      { title: 'Execute one step at a time', detail: 'Read the step and its Expected Result, choose Passed, Failed or Blocked, add remarks or attachments if you like (even for a Passed step), then click Submit Step. The next step stays locked until the current one is saved. Use the Previous and Next arrows to review steps you already did.' },
       { title: 'Log a defect when a step fails', detail: 'Fill in Actual Result, Defect Description, Affected / Impact and Comment (all required). Severity and a screenshot or log file are optional. The Ticket ID is generated automatically. You cannot submit the run until every failed or blocked step has a defect logged.' },
-      { title: 'Submit the run', detail: 'After the last step, set the Overall Result, give a Rating (1 to 5) and write your Overall Feedback, then click Submit Test Run.' },
+      { title: 'Submit the run', detail: 'After the last step, set the Overall Result, write your Overall Feedback (optional), then click Submit Test Run.' },
       { title: 'See your result', detail: 'Back on the Runs & results page, click a finished run to open its report page and download the Test Case Run Report as a PDF.' }
     ],
     tip: 'Each tester has their own run. Never worry about overwriting someone else\'s results.'
@@ -178,11 +178,12 @@ const sections = [
     steps: [
       { title: 'Create a test case', detail: 'Click New Test Case. On the Header tab enter the title (the Test Case ID is generated for you, e.g. TC261007001). On the Description tab describe the test, and on the Steps tab add each step with its Expected Result.', role: 'admin' },
       { title: 'Choose the cycle', detail: 'A new test case is placed in the newest Test Cycle automatically. You can pick another cycle from the list or type a new name. The Version Tag follows the selected cycle.', role: 'admin' },
-      { title: 'Set the details', detail: 'On the right side set State, Priority, Department and Module / Feature.', role: 'admin' },
-      { title: 'Assigned testers', detail: 'Testers are assigned automatically. Remove a tester only if they have no recorded run yet; otherwise the system tells you the tester could not be unassigned.', role: 'admin' },
+      { title: 'Set the details', detail: 'On the right side set the Test Cycle, Priority and Module / Feature. Hover the (i) icons beside each field for help.', role: 'admin' },
+      { title: 'Add steps and attachments', detail: 'On the Steps tab add each step with its Expected Result. You can attach a screenshot or document to every step.', role: 'admin' },
+      { title: 'Filter the list', detail: 'Use the filter bar above the table to search by ID, title or module, or filter by Test Cycle, Priority and Module / Feature. Click Clear to reset.' },
       { title: 'Edit or delete', detail: 'Use the pencil icon to edit and the bin icon to delete a test case.', role: 'admin' },
       { title: 'View details', detail: 'Click the eye icon to open the Test Case Details page: overview, description, steps, feedback and the admin approval status.' },
-      { title: 'See the flow', detail: 'Click the arrow beside the ID to expand Test Case → Assignment → Run, with each tester\'s latest run. Testers can start or re-run from there.' },
+      { title: 'See the flow', detail: 'Click the arrow beside the ID to expand Test Case → Run, with each tester\'s latest run. Testers can start or re-run from there.' },
       { title: 'Export', detail: 'Use the Excel or PDF button at the top to download a copy of the test case list.', role: 'admin' }
     ],
     tip: 'The list is ordered by Test Case ID, with the first one created at the top. Keep expected results specific; it makes Pass/Fail decisions faster.'
@@ -195,7 +196,9 @@ const sections = [
     roles: ['admin'],
     steps: [
       { title: 'Open the tab', detail: 'In Test Cases, switch to the Test Cycles tab.' },
-      { title: 'Create a cycle', detail: 'Click New Test Cycle. Pick the Version Tag (required), then set Assigned To, Status, Department, Start and End date and the Auto-Assign Rule. The Cycle ID is generated for you (e.g. CY261005001).' },
+      { title: 'Create a cycle', detail: 'Click New Test Cycle. Pick the Version Tag and the Project (both required), then set Assigned To, Status, Department, Start and End date and the Auto-Assign Rule. You can also tick the Test Cases that belong to the cycle. The Cycle ID is generated for you (e.g. CY261005001).' },
+      { title: 'How a cycle passes or fails', detail: 'The Result of a cycle is decided by its Critical test cases (priority = Critical), not only by the percentage. Any failed Critical test case fails the cycle; the cycle passes only when every Critical test case has passed. The pass rate is shown for reference.' },
+      { title: 'Filter cycles', detail: 'Search by cycle ID, version tag or project, or filter by Project, Status and Result.' },
       { title: 'New test cases go to the newest cycle', detail: 'When you create a cycle, test cases created afterwards join it automatically. Existing test cases stay in their original cycle.' },
       { title: 'View a cycle', detail: 'Click the Cycle ID or the eye icon to open the Test Cycle Details page with the cycle information and its test cases.' },
       { title: 'Peek at the test cases', detail: 'Click the arrow beside a Cycle ID to list the test cases inside it without leaving the page.' }
@@ -210,7 +213,7 @@ const sections = [
     steps: [
       { title: 'Defects tab', detail: 'Every defect logged during test runs: test case, step, actual result, severity, ticket, who reported it and when. Filter by severity or search by test case, step, ticket or reporter.' },
       { title: 'Open a defect', detail: 'Click the eye icon to open the Defect Details page with the actual result, comments and any screenshots or files.' },
-      { title: 'Overall Feedback tab', detail: 'The overall rating and comment each tester left when submitting a run.' },
+      { title: 'Overall Feedback tab', detail: 'The overall comment each tester left when submitting a run.' },
       { title: 'Use it to improve', detail: 'Admins use defects and feedback to fix issues or update the test case or system, then run again.', role: 'admin' }
     ]
   },

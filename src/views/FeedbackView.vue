@@ -139,22 +139,7 @@
       <!-- ===================== OVERALL FEEDBACK TAB (Card Layout) ===================== -->
       <v-window-item value="overall">
         <v-row class="mb-4" align="center">
-          <v-col cols="12" md="7" class="d-flex flex-wrap" style="gap: 8px;">
-            <v-chip
-              v-for="r in [5, 4, 3, 2, 1]"
-              :key="r"
-              size="small"
-              :color="activeRating === r ? 'amber' : 'grey'"
-              :variant="activeRating === r ? 'flat' : 'tonal'"
-              label
-              class="font-weight-bold"
-              style="cursor: pointer;"
-              @click="activeRating = activeRating === r ? null : r"
-            >
-              {{ r }}★ · {{ countByRating(r) }}
-            </v-chip>
-          </v-col>
-          <v-col cols="12" md="5">
+          <v-col cols="12" md="6">
             <v-text-field
               v-model="feedbackSearch"
               label="Search test case or comment"
@@ -174,9 +159,6 @@
               <div>
                 <div class="d-flex justify-space-between align-center mb-2">
                   <span class="id-text mono">{{ f.test_case_code || '-' }}</span>
-                  <v-chip size="small" color="amber" variant="tonal" label class="font-weight-bold">
-                    {{ f.rating != null ? f.rating + '★' : '-' }}
-                  </v-chip>
                 </div>
                 <div class="text-subtitle-2 font-weight-bold mb-2">{{ f.test_case_title || '-' }}</div>
                 <p class="text-body-2 text-grey-darken-3 mb-4" style="white-space: normal;">
@@ -184,7 +166,7 @@
                 </p>
               </div>
               <div class="d-flex justify-space-between align-center text-caption text-grey pt-3 border-top">
-                <span>Oleh: <strong class="text-purple-darken-3">{{ f.user_name || 'Unknown' }}</strong></span>
+                <span>By: <strong class="text-purple-darken-3">{{ f.user_name || 'Unknown' }}</strong></span>
                 <span>{{ formatDateTime(f.created_at) }}</span>
               </div>
             </v-card>
@@ -323,17 +305,8 @@ const openDefectPage = (defect) => router.push({ name: 'FeedbackDefectDetail', p
 
 const feedbacks = ref([])
 const feedbackSearch = ref('')
-const activeRating = ref(null)
-
-const countByRating = (rating) =>
-  feedbacks.value.filter((f) => f.rating === rating).length
-
 const filteredFeedbacks = computed(() => {
   let list = feedbacks.value
-
-  if (activeRating.value) {
-    list = list.filter((f) => f.rating === activeRating.value)
-  }
 
   if (feedbackSearch.value && feedbackSearch.value.trim()) {
     const q = feedbackSearch.value.trim().toLowerCase()
@@ -365,7 +338,7 @@ const feedbackRange = computed(() => {
   const end = Math.min(feedbackPage.value * feedbackPageSize.value, total)
   return `${start}–${end} of ${total}`
 })
-watch([feedbackSearch, activeRating, feedbackPageSize], () => { feedbackPage.value = 1 })
+watch([feedbackSearch, feedbackPageSize], () => { feedbackPage.value = 1 })
 watch(feedbackPageCount, (n) => { if (feedbackPage.value > n) feedbackPage.value = n })
 
 const fetchFeedbacks = async () => {

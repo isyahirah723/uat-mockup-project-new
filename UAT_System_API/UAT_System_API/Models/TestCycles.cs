@@ -18,11 +18,13 @@ namespace UAT_System_API.Models
         public DateTime? created_date { get; set; }
         public string? auto_assign_rule { get; set; }
         public string? module { get; set; }
+        public string? project { get; set; }
         public string? priority { get; set; }
         public string? match_department { get; set; }
         public DateTime created_at { get; set; } = DateTime.Now;
         public DateTime updated_at { get; set; } = DateTime.Now;
         public int? created_by { get; set; }
         public int? assigned_to { get; set; }
+        public string? assigned_testers { get; set; } // comma separated user ids
     }
 }

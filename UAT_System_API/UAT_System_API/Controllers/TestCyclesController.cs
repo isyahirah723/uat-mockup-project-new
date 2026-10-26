@@ -61,12 +61,14 @@ namespace UAT_System_API.Controllers
                             c.created_date,
                             c.auto_assign_rule,
                             c.module,
+                            c.project,
                             c.priority,
                             c.match_department,
                             c.created_at,
                             c.updated_at,
                             c.created_by,
                             c.assigned_to,
+                            c.assigned_testers,
                             created_by_name = user != null ? user.full_name : "System",
                             assigned_to_name = assign != null ? assign.full_name : "Unassigned"
                         };
@@ -120,6 +122,15 @@ namespace UAT_System_API.Controllers
                 return BadRequest(new { message = $"User dengan ID {cycle.assigned_to} tidak wujud dalam pangkalan data." });
             }
 
+            if (!string.IsNullOrWhiteSpace(cycle.assigned_testers))
+            {
+                var ids = cycle.assigned_testers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(x => int.TryParse(x, out var v) ? v : 0).Distinct().ToList();
+                var found = await _context.Users.CountAsync(u => ids.Contains(u.id));
+                if (ids.Contains(0) || found != ids.Count)
+                    return BadRequest(new { message = "One or more selected testers do not exist in the database." });
+            }
+
             cycle.created_at = DateTime.Now;
             cycle.updated_at = DateTime.Now;
 
@@ -156,12 +167,14 @@ namespace UAT_System_API.Controllers
                             c.created_date,
                             c.auto_assign_rule,
                             c.module,
+                            c.project,
                             c.priority,
                             c.match_department,
                             c.created_at,
                             c.updated_at,
                             c.created_by,
                             c.assigned_to,
+                            c.assigned_testers,
                             created_by_name = user != null ? user.full_name : "System",
                             assigned_to_name = "Unassigned"
                         };
@@ -189,9 +202,11 @@ namespace UAT_System_API.Controllers
             existingCycle.status = cycle.status;
             existingCycle.auto_assign_rule = cycle.auto_assign_rule;
             existingCycle.module = cycle.module;
+            existingCycle.project = cycle.project;
             existingCycle.priority = cycle.priority;
             existingCycle.match_department = cycle.match_department;
             existingCycle.assigned_to = cycle.assigned_to;
+            existingCycle.assigned_testers = cycle.assigned_testers;
             existingCycle.updated_at = DateTime.Now;
 
             try

@@ -16,6 +16,7 @@ namespace UAT_System_API.Data
         public DbSet<SystemSettings> SystemSettings { get; set; }
         public DbSet<TestAssignments> TestAssignments { get; set; }
         public DbSet<TestRuns> TestRuns { get; set; }
+        public DbSet<TestStepAttachments> TestStepAttachments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -52,34 +52,28 @@
               <div class="info-value text-teal">{{ item.test_case_code || '#' + item.id }}</div>
             </div>
             <div>
-              <div class="info-label">Department</div>
-              <div class="info-value">{{ item.test_department || '-' }}</div>
+              <div class="info-label">Module / Feature</div>
+              <div class="info-value">{{ item.module || '-' }}</div>
+            </div>
+            <div>
+              <div class="info-label">Test Cycle</div>
+              <router-link
+                v-if="item.cycle_id"
+                :to="{ name: 'TestCycleDetail', params: { id: item.cycle_id } }"
+                class="info-value text-teal"
+                style="text-decoration: none;"
+              >{{ cycleName }}</router-link>
+              <div v-else class="info-value">-</div>
             </div>
             <div>
               <div class="info-label">Version Tag</div>
               <div class="info-value">{{ item.version_tag || '-' }}</div>
             </div>
             <div>
-              <div class="info-label">Status</div>
-              <v-chip size="x-small" variant="flat" :color="statusColor(item.status)" label class="font-weight-bold text-white">
-                {{ item.status || 'Draft' }}
-              </v-chip>
-            </div>
-            <div>
               <div class="info-label">Priority</div>
               <v-chip size="x-small" variant="flat" :color="priorityColor(item.priority)" label class="font-weight-bold text-white">
                 {{ item.priority || 'Medium' }}
               </v-chip>
-            </div>
-            <div>
-              <div class="info-label mb-1">Assigned Testers</div>
-              <div v-if="assigned.length" class="d-flex flex-wrap" style="gap: 4px;">
-                <v-chip v-for="a in assigned" :key="a.id" size="small" variant="tonal" color="teal-darken-3" class="font-weight-medium">
-                  <v-icon start size="12">mdi-account</v-icon>
-                  {{ userNameById[a.user_id] || a.user_name || ('User #' + a.user_id) }}
-                </v-chip>
-              </div>
-              <span v-else class="text-caption text-grey">Unassigned</span>
             </div>
           </div>
         </div>
@@ -97,12 +91,22 @@
             <div v-for="(step, idx) in steps" :key="idx" class="step-box">
               <div class="d-flex align-start justify-space-between" style="gap: 12px;">
                 <div class="step-text"><span class="step-num">#{{ idx + 1 }}</span> {{ step.description }}</div>
-                <v-chip size="x-small" variant="flat" class="text-white" :color="stepColor(step)">
-                  {{ step.pass_fail || step.passFail || 'N/A' }}
-                </v-chip>
               </div>
               <div class="step-sub mt-1">Expected: {{ step.expected || '-' }}</div>
-              <div v-if="step.actual" class="step-sub">Actual: {{ step.actual }}</div>
+              <div v-if="(stepFiles[step.id] || []).length" class="d-flex flex-wrap mt-2" style="gap: 6px;">
+                <v-chip
+                  v-for="a in stepFiles[step.id]"
+                  :key="a.id"
+                  size="x-small"
+                  label
+                  variant="tonal"
+                  color="teal-darken-2"
+                  :href="a.url || undefined"
+                  target="_blank"
+                >
+                  <v-icon start size="12">mdi-paperclip</v-icon>{{ a.file_name }}
+                </v-chip>
+              </div>
             </div>
           </div>
           <div v-else class="text-grey text-caption">No steps provided.</div>
@@ -115,7 +119,6 @@
             <div v-for="(fb, idx) in feedbacks" :key="idx" class="step-box">
               <div class="d-flex align-center justify-space-between">
                 <span class="font-weight-bold text-caption">{{ fb.user_name || fb.user || 'Anonymous' }}</span>
-                <span class="text-amber-darken-2 font-weight-bold text-caption">Rating: {{ fb.rating || 5 }}/5</span>
               </div>
               <div class="text-body-2 mt-1">{{ fb.comment }}</div>
             </div>
@@ -162,7 +165,12 @@ const userNameById = computed(() => {
   users.value.forEach((u) => { map[u.id] = u.full_name })
   return map
 })
-const assigned = computed(() => assignments.value.filter((a) => String(a.test_case_id) === String(testCaseId)))
+const cycles = ref([])
+const stepFiles = ref({})
+const cycleName = computed(() => {
+  const c = cycles.value.find((x) => String(x.id) === String(item.value?.cycle_id))
+  return c ? (c.cycle_code ? `${c.cycle_code} · ${c.name}` : c.name) : `Cycle #${item.value?.cycle_id}`
+})
 const steps = computed(() => item.value?.steps || [])
 const feedbacks = computed(() => item.value?.feedbacks || [])
 
@@ -174,24 +182,11 @@ const priorityColor = (p) => {
   if (p === 'Medium') return '#0284c7'
   return '#64748b'
 }
-const statusColor = (s) => {
-  if (s === 'Passed') return '#16a34a'
-  if (s === 'Failed') return '#dc2626'
-  if (s === 'Pending') return '#d97706'
-  return '#475569'
-}
 const approvalColor = (s) => {
   if (s === 'Approved') return '#059669'
   if (s === 'Not Approved') return '#dc2626'
   return '#64748b'
 }
-const stepColor = (s) => {
-  const v = s.pass_fail || s.passFail
-  if (v === 'Pass') return 'green'
-  if (v === 'Fail') return 'red'
-  return 'grey'
-}
-
 const approve = async (approved) => {
   if (!item.value) return
   approving.value = true
@@ -231,6 +226,15 @@ onMounted(async () => {
     item.value = found
     users.value = usersRes.ok ? await usersRes.json() : []
     assignments.value = assignRes.ok ? await assignRes.json() : []
+
+    // cycle name (for the link) and the attachments added to each step
+    const cyclesRes = await fetch(`${API}/TestCycles`).catch(() => null)
+    cycles.value = cyclesRes && cyclesRes.ok ? await cyclesRes.json() : []
+    const entries = await Promise.all((item.value.steps || []).filter((s) => s.id).map(async (s) => {
+      const r = await fetch(`${API}/TestStepAttachments/by-step/${s.id}`).catch(() => null)
+      return [s.id, r && r.ok ? await r.json() : []]
+    }))
+    stepFiles.value = Object.fromEntries(entries)
   } catch (e) {
     console.error(e)
     error.value = e.message || 'Failed to load test case'

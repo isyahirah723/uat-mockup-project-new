@@ -40,11 +40,61 @@
 
     <!-- TAB: TEST CASES -->
     <div v-show="mainTab === 'cases'">
-    <div v-if="cycleFilter !== 'All'" class="mb-2">
-      <v-chip closable size="small" color="teal-darken-2" label @click:close="cycleFilter = 'All'">
-        Cycle: {{ getCycleName(cycleFilter) }}
-      </v-chip>
-    </div>
+    <!-- Filters -->
+    <v-card variant="outlined" class="rounded-lg pa-3 mb-3 filter-card" elevation="0">
+      <v-row dense align="center">
+        <v-col cols="12" md="4">
+          <v-text-field
+            v-model="searchQuery"
+            label="Search ID, title or module"
+            prepend-inner-icon="mdi-magnify"
+            variant="outlined"
+            density="compact"
+            clearable
+            hide-details
+            class="custom-field"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="6" md="3">
+          <v-select
+            v-model="cycleFilter"
+            :items="cycleOptions"
+            item-title="name"
+            item-value="id"
+            label="Test Cycle"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="custom-field"
+          ></v-select>
+        </v-col>
+        <v-col cols="6" md="2">
+          <v-select
+            v-model="priorityFilter"
+            :items="['All', 'Low', 'Medium', 'High', 'Critical']"
+            label="Priority"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="custom-field"
+          ></v-select>
+        </v-col>
+        <v-col cols="6" md="2">
+          <v-select
+            v-model="moduleFilter"
+            :items="['All', ...moduleOptions]"
+            label="Module / Feature"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="custom-field"
+          ></v-select>
+        </v-col>
+        <v-col cols="6" md="1" class="d-flex justify-end">
+          <v-btn variant="text" size="small" class="text-capitalize" :disabled="!hasActiveFilters" @click="clearFilters">Clear</v-btn>
+        </v-col>
+      </v-row>
+    </v-card>
     <v-card variant="outlined" class="rounded-lg pa-0 overflow-hidden main-table-card" elevation="1">
       <v-table hover density="compact" class="test-case-table">
         <thead>
@@ -52,6 +102,8 @@
             <th class="font-weight-bold">ID</th>
             <th class="font-weight-bold">TITLE</th>
             <th class="font-weight-bold">CYCLE</th>
+            <th class="font-weight-bold">MODULE</th>
+            <th class="font-weight-bold">PRIORITY</th>
             <th class="font-weight-bold text-center" style="width: 140px;">ACTIONS</th>
           </tr>
         </thead>
@@ -66,7 +118,7 @@
                   variant="tonal"
                   color="teal-darken-2"
                   style="width: 20px; height: 20px;"
-                  :title="expandedTestCaseIds.has(item.id) ? 'Hide flow' : 'Show Test Case → Assignment → Run flow'"
+                  :title="expandedTestCaseIds.has(item.id) ? 'Hide flow' : 'Show Test Case → Run flow'"
                   @click.stop="toggleExpand(item)"
                 >
                   <v-icon size="14">{{ expandedTestCaseIds.has(item.id) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}</v-icon>
@@ -83,19 +135,29 @@
             </td>
 
             <td class="py-1">
-              <v-chip size="x-small" variant="flat" color="#e0f2fe" class="text-light-blue-darken-4 font-weight-bold rounded-lg">
+              <v-chip size="x-small" variant="flat" class="cycle-chip font-weight-bold rounded-lg">
                 <v-icon start size="12">mdi-sync</v-icon>
                 {{ getCycleName(item.cycle_id) }}
               </v-chip>
             </td>
 
+            <td class="py-1">
+              <span class="text-caption">{{ item.module || '-' }}</span>
+            </td>
+
+            <td class="py-1">
+              <v-chip size="x-small" variant="flat" label class="font-weight-bold text-white" :color="getPriorityColor(item.priority)">
+                {{ item.priority || 'Medium' }}
+              </v-chip>
+            </td>
+
             <td class="text-center py-1" @click.stop>
               <div class="action-buttons-group">
-                <v-btn icon variant="tonal" size="x-small" color="blue-darken-1" title="Edit" style="width: 22px; height: 22px;" @click="openEditDialog(item)">
+                <v-btn icon variant="tonal" size="x-small" class="act-btn act-edit" title="Edit" style="width: 22px; height: 22px;" @click="openEditDialog(item)">
                   <v-icon size="14">mdi-pencil-outline</v-icon>
                 </v-btn>
 
-                <v-btn icon variant="tonal" size="x-small" color="teal-darken-2" title="View Details" style="width: 22px; height: 22px;" @click="openViewPage(item)">
+                <v-btn icon variant="tonal" size="x-small" class="act-btn act-view" title="View Details" style="width: 22px; height: 22px;" @click="openViewPage(item)">
                   <v-icon size="14">mdi-eye-outline</v-icon>
                 </v-btn>
 
@@ -103,7 +165,7 @@
                   icon
                   variant="tonal"
                   size="x-small"
-                  color="purple-darken-1"
+                  class="act-btn act-users"
                   style="width: 22px; height: 22px;"
                   :disabled="getAssignedUsers(item.id).length === 0"
                   :title="getAssignedUsers(item.id).length === 0 ? 'No testers assigned yet' : 'View tester runs'"
@@ -112,7 +174,7 @@
                   <v-icon size="14">mdi-account-multiple-outline</v-icon>
                 </v-btn>
 
-                <v-btn icon variant="tonal" size="x-small" color="red-darken-1" title="Delete" style="width: 22px; height: 22px;" @click="confirmDelete(item.id)">
+                <v-btn icon variant="tonal" size="x-small" class="act-btn act-delete" title="Delete" style="width: 22px; height: 22px;" @click="confirmDelete(item.id)">
                   <v-icon size="14">mdi-delete-outline</v-icon>
                 </v-btn>
               </div>
@@ -121,18 +183,13 @@
 
          
           <tr v-if="expandedTestCaseIds.has(item.id)">
-            <td colspan="4" class="pa-0">
+            <td colspan="6" class="pa-0">
               <div class="expand-panel pa-3">
                 <!-- flow bar -->
                 <div class="flow-bar mb-3">
                   <div class="flow-bar-step">
                     <div class="flow-bar-icon" style="width: 22px; height: 22px;"><v-icon size="12">mdi-file-document-outline</v-icon></div>
                     <span>Test Case</span>
-                  </div>
-                  <div class="flow-bar-connector" style="width: 24px; height: 2px;"></div>
-                  <div class="flow-bar-step">
-                    <div class="flow-bar-icon" style="width: 22px; height: 22px;"><v-icon size="12">mdi-account-multiple-outline</v-icon></div>
-                    <span>Assignment</span>
                   </div>
                   <div class="flow-bar-connector" style="width: 24px; height: 2px;"></div>
                   <div class="flow-bar-step">
@@ -148,27 +205,6 @@
                 </div>
 
                 
-                <div class="expand-section mb-2">
-                  <div class="expand-section-title" style="font-size: 0.65rem;">Assigned Testers</div>
-                  <div v-if="expandedTreeLoading[item.id]" class="text-caption text-grey">Loading…</div>
-                  <div v-else-if="(expandedTreeData[item.id] || []).length === 0" class="text-caption text-grey">
-                    No tester assigned yet
-                  </div>
-                  <div v-else class="d-flex flex-wrap" style="gap: 4px;">
-                    <v-chip
-                      v-for="(t, idx) in expandedTreeData[item.id]"
-                      :key="'a-' + idx"
-                      size="x-small"
-                      variant="tonal"
-                      color="teal"
-                    >
-                      <v-icon start size="12">mdi-account</v-icon>
-                      {{ t.user_name }}
-                    </v-chip>
-                  </div>
-                </div>
-
-               
                 <div class="expand-section expand-section-last">
                   <div class="expand-section-title" style="font-size: 0.65rem;">Test Run</div>
                   <div class="d-flex align-center justify-space-between" style="gap: 8px;">
@@ -195,7 +231,7 @@
           </template>
 
           <tr v-if="filteredTestCases.length === 0 && !apiLoading">
-            <td colspan="4" class="text-center text-grey py-4">
+            <td colspan="6" class="text-center text-grey py-4">
               No Test Case records found.
             </td>
           </tr>
@@ -209,7 +245,7 @@
         style="row-gap: 8px;"
       >
         <div class="text-caption text-grey-darken-1 font-weight-medium" style="font-size: 0.75rem;">
-          Showing <span class="text-teal-darken-3 font-weight-bold">{{ pageStart }}-{{ pageEnd }}</span> of <span class="text-teal-darken-3 font-weight-bold">{{ filteredTestCases.length }}</span> records
+          Showing <span class="teal-text font-weight-bold">{{ pageStart }}-{{ pageEnd }}</span> of <span class="teal-text font-weight-bold">{{ filteredTestCases.length }}</span> records
         </div>
 
         <div class="d-flex align-center" style="gap: 12px;">
@@ -279,7 +315,8 @@
                     variant="outlined"
                     density="comfortable"
                     class="custom-field mb-4"
-                    hide-details
+                    hint="A short, specific name that says what is being tested, e.g. 'Submit a claim with a receipt attached'."
+                    persistent-hint
                   ></v-text-field>
 
                   <div class="d-flex align-center mb-3" style="gap: 10px;">
@@ -292,38 +329,26 @@
                     density="comfortable"
                     placeholder="Auto-generated by system"
                     readonly
-                    hide-details
-                    class="custom-field mb-4"
-                  ></v-text-field>
-
-                  <div class="d-flex align-center mb-3" style="gap: 10px;">
-                    <div class="testmo-icon-badge"><v-icon size="16" color="white">mdi-account-multiple-outline</v-icon></div>
-                    <span class="text-caption font-weight-bold text-slate-500" style="text-transform: uppercase; letter-spacing: 0.04em;">Assigned Testers</span>
-                  </div>
-                  <v-select
-                    v-model="form.assignedTesterIds"
-                    :items="testerOptions"
-                    item-title="full_name"
-                    item-value="id"
-                    variant="outlined"
-                    density="comfortable"
-                    multiple
-                    chips
-                    closable-chips
-                    hide-details
                     class="custom-field"
-                  ></v-select>
+                    hint="Generated automatically: TC + date (YYMMDD) + running number. It cannot be edited."
+                    persistent-hint
+                  ></v-text-field>
                 </div>
 
                 <!-- Properties panel (Testmo-style right column) -->
                 <div class="testmo-props-col">
                   <div class="testmo-props-field">
-                    <span class="testmo-props-label">Test Cycle</span>
+                    <span class="testmo-props-label">Test Cycle
+                    <v-tooltip location="top" max-width="280">
+                      <template #activator="{ props }"><v-icon v-bind="props" size="14" class="ml-1 info-icon">mdi-information-outline</v-icon></template>
+                      The testing window this test case belongs to. Pick an existing cycle or type a new name to create one when you save.
+                    </v-tooltip>
+                  </span>
                     <v-combobox
                       v-model="form.cycleInput"
                       :items="cycleNameOptions"
                       @update:model-value="onCycleChange"
-                      placeholder="Pilih atau taip nama Test Cycle"
+                      placeholder="Select or type a Test Cycle name"
                       variant="outlined"
                       density="compact"
                       clearable
@@ -334,23 +359,16 @@
                       v-if="form.cycleInput && !form.cycleId"
                       class="text-caption"
                       style="font-size: 0.65rem; color: var(--acc-teal, #0f766e);"
-                    >Cycle baru "{{ form.cycleInput }}" akan dicipta bila Save.</span>
+                    >New cycle "{{ form.cycleInput }}" will be created when you save.</span>
                   </div>
 
                   <div class="testmo-props-field">
-                    <span class="testmo-props-label">State</span>
-                    <v-select
-                      :items="['Draft', 'Passed', 'Failed', 'Pending']"
-                      v-model="form.status"
-                      variant="outlined"
-                      density="compact"
-                      hide-details
-                      class="custom-field"
-                    ></v-select>
-                  </div>
-
-                  <div class="testmo-props-field">
-                    <span class="testmo-props-label">Priority</span>
+                    <span class="testmo-props-label">Priority
+                    <v-tooltip location="top" max-width="280">
+                      <template #activator="{ props }"><v-icon v-bind="props" size="14" class="ml-1 info-icon">mdi-information-outline</v-icon></template>
+                      How important this test is to the business. A Test Cycle can only pass when all of its Critical test cases have passed.
+                    </v-tooltip>
+                  </span>
                     <v-select
                       :items="['Low', 'Medium', 'High', 'Critical']"
                       v-model="form.priority"
@@ -362,19 +380,12 @@
                   </div>
 
                   <div class="testmo-props-field">
-                    <span class="testmo-props-label">Department</span>
-                    <v-select
-                      :items="departmentOptions"
-                      v-model="form.testDepartment"
-                      variant="outlined"
-                      density="compact"
-                      hide-details
-                      class="custom-field"
-                    ></v-select>
-                  </div>
-
-                  <div class="testmo-props-field">
-                    <span class="testmo-props-label">Version Tag</span>
+                    <span class="testmo-props-label">Version Tag
+                    <v-tooltip location="top" max-width="280">
+                      <template #activator="{ props }"><v-icon v-bind="props" size="14" class="ml-1 info-icon">mdi-information-outline</v-icon></template>
+                      Follows the selected Test Cycle automatically. Change the Test Cycle to change this.
+                    </v-tooltip>
+                  </span>
                     <v-text-field
                       v-model="form.versionTag"
                       variant="outlined"
@@ -387,7 +398,12 @@
                   </div>
 
                   <div class="testmo-props-field">
-                    <span class="testmo-props-label">Module / Feature</span>
+                    <span class="testmo-props-label">Module / Feature
+                    <v-tooltip location="top" max-width="280">
+                      <template #activator="{ props }"><v-icon v-bind="props" size="14" class="ml-1 info-icon">mdi-information-outline</v-icon></template>
+                      The part of the system under test, so the test cases can be grouped and filtered.
+                    </v-tooltip>
+                  </span>
                     <v-select
                       :items="moduleOptions"
                       v-model="form.module"
@@ -403,34 +419,105 @@
             </v-window-item>
 
             <v-window-item value="description">
-              <v-textarea label="Test Description" v-model="form.testDescription" variant="outlined" density="compact" rows="3" class="custom-field"></v-textarea>
-              <v-textarea label="Test Dependencies" v-model="form.dependencies" variant="outlined" density="compact" rows="2" class="mt-2 custom-field"></v-textarea>
-              <v-textarea label="Test Conditions" v-model="form.conditions" variant="outlined" density="compact" rows="2" class="mt-2 custom-field"></v-textarea>
-              <v-textarea label="Test Control" v-model="form.control" variant="outlined" density="compact" rows="2" class="mt-2 custom-field"></v-textarea>
+              <v-textarea
+                label="Test Description"
+                v-model="form.testDescription"
+                variant="outlined"
+                style="margin-top: 5px;"
+                density="compact"
+                rows="3"
+                class="custom-field"
+                hint="What this test verifies and why it matters, in one or two sentences."
+                persistent-hint
+              ></v-textarea>
+              <v-textarea
+                label="Test Dependencies"
+                v-model="form.dependencies"
+                variant="outlined"
+                density="compact"
+                rows="2"
+                class="mt-2 custom-field"
+                hint="What must already exist or be done first, e.g. another test case passed, test data prepared, an integration running."
+                persistent-hint
+              ></v-textarea>
+              <v-textarea
+                label="Test Conditions"
+                v-model="form.conditions"
+                variant="outlined"
+                density="compact"
+                rows="2"
+                class="mt-2 custom-field"
+                hint="The setup required before step 1, e.g. logged in as Admin, UAT environment, a pending claim exists."
+                persistent-hint
+              ></v-textarea>
             </v-window-item>
 
             <v-window-item value="steps">
               <div class="d-flex justify-space-between align-center mb-3">
-                <div class="text-subtitle-2 font-weight-bold text-teal-darken-3">Test Steps</div>
+                <div class="text-subtitle-2 font-weight-bold teal-text">Test Steps</div>
                 <v-btn size="small" color="#0f766e" prepend-icon="mdi-plus" class="text-capitalize text-white font-weight-bold rounded-lg" @click="addStep">Add Step</v-btn>
               </div>
               <div v-for="(step, idx) in form.steps" :key="idx" class="mb-3 pa-3 rounded-xl step-box">
                 <div class="d-flex align-center justify-space-between mb-2">
-                  <span class="font-weight-bold text-caption text-teal-darken-4">STEP {{ idx + 1 }}</span>
+                  <span class="font-weight-bold text-caption teal-text">STEP {{ idx + 1 }}</span>
                   <v-btn icon size="x-small" variant="tonal" color="red" @click="removeStep(idx)"><v-icon>mdi-delete</v-icon></v-btn>
                 </div>
                 <v-row dense>
                   <v-col cols="12" md="8">
-                    <v-text-field v-model="step.description" label="Step Description" variant="outlined" density="compact" hide-details class="custom-field"></v-text-field>
+                    <v-text-field
+                      v-model="step.description"
+                      label="Step Description"
+                      variant="outlined"
+                      density="compact"
+                      class="custom-field"
+                      hint="One clear action for the tester, e.g. 'Click Submit Claim'."
+                      persistent-hint
+                    ></v-text-field>
                   </v-col>
                   <v-col cols="12" md="4">
-                    <v-text-field v-model="step.expected" label="Expected Result" variant="outlined" density="compact" hide-details class="custom-field"></v-text-field>
+                    <v-text-field
+                      v-model="step.expected"
+                      label="Expected Result"
+                      variant="outlined"
+                      density="compact"
+                      class="custom-field"
+                      hint="What should happen if the system works correctly."
+                      persistent-hint
+                    ></v-text-field>
                   </v-col>
-                  <v-col cols="12" sm="6" class="mt-2">
-                    <v-select v-model="step.passFail" :items="['Pass', 'Fail', 'N/A']" label="Result" variant="outlined" density="compact" hide-details class="custom-field"></v-select>
-                  </v-col>
-                  <v-col cols="12" sm="6" class="mt-2">
-                    <v-text-field v-model="step.actual" label="Actual Result" variant="outlined" density="compact" hide-details class="custom-field"></v-text-field>
+                  <v-col cols="12" class="mt-2">
+                    <v-file-input
+                      v-model="step.files"
+                      multiple
+                      chips
+                      counter
+                      show-size
+                      label="Attachment (screenshot, document)"
+                      variant="outlined"
+                      density="compact"
+                      prepend-icon=""
+                      prepend-inner-icon="mdi-paperclip"
+                      class="custom-field"
+                      hint="Optional. Add a screenshot or document that helps the tester carry out this step."
+                      persistent-hint
+                    ></v-file-input>
+                    <div v-if="step.existing && step.existing.length" class="d-flex flex-wrap mt-2" style="gap: 6px;">
+                      <v-chip
+                        v-for="a in step.existing"
+                        :key="a.id"
+                        size="x-small"
+                        label
+                        variant="tonal"
+                        color="teal-darken-2"
+                        :href="a.url || undefined"
+                        target="_blank"
+                        closable
+                        close-label="Remove attachment"
+                        @click:close.prevent="deleteStepAttachment(step, a)"
+                      >
+                        <v-icon start size="12">mdi-paperclip</v-icon>{{ a.file_name }}
+                      </v-chip>
+                    </div>
                   </v-col>
                 </v-row>
               </div>
@@ -579,6 +666,7 @@ import TestCyclesPanel from './TestCyclesPanel.vue'
 
 const router = useRouter()
 const route = useRoute()
+const API_BASE = 'https://localhost:7049/api'
 const apiTestCases = ref([])
 const apiLoading = ref(false)
 const testCycles = ref([])
@@ -610,8 +698,6 @@ const fixedTesterUsers = computed(() => {
     .filter(Boolean)
 })
 
-const testerOptions = computed(() => users.value)
-
 const fetchFromAPI = async () => {
   apiLoading.value = true
   try {
@@ -636,14 +722,6 @@ const fetchAssignments = async () => {
 
 const getAssignedUsers = (testCaseId) => {
   return testAssignments.value.filter((a) => String(a.test_case_id) === String(testCaseId))
-}
-
-const assignedNames = (testCaseId) => {
-  const assigned = getAssignedUsers(testCaseId)
-  if (!assigned.length) return 'Unassigned'
-  return assigned
-    .map((a) => userNameById.value[a.user_id] || a.user_name || ('User #' + a.user_id))
-    .join(', ')
 }
 
 const generateTestCaseId = () => {
@@ -726,9 +804,9 @@ const createCycleByName = async (name) => {
 }
 
 const searchQuery = ref('')
-const statusFilter = ref('All')
 const priorityFilter = ref('All')
 const cycleFilter = ref('All')
+const moduleFilter = ref('All')
 const mainTab = ref(route.query.tab === 'cycles' ? 'cycles' : 'cases')
 const dialog = ref(false)
 const isEdit = ref(false)
@@ -737,16 +815,6 @@ const activeTab = ref('header')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 const itemsPerPageOptions = [10, 25, 50, 100]
-
-const departmentOptions = [
-  'PEM', 'ADGM', 'PMM', 'SMHR', 'PB8', 'PB7', 'PB4', 'PB10',
-  'MOTC', 'SOTC', 'AOE', 'PQA', 'SEIT', 'MGMT', 'OTR', 'SOIT',
-  'SOVS', 'PAPR', 'PMGM', 'PLFG', 'SOMT', 'SMMG', 'PB6', 'PRND',
-  'SETH', 'SEPC', 'SETT', 'PRDA', 'AIT', 'SOPA', 'SEGH', 'PLTB',
-  'PLTA', 'SEPH', 'SOGT', 'PB3', 'AMCA', 'PAPK', 'PB2', 'PTM',
-  'ARPD', 'PQC', 'SEVN', 'SOIP', 'SOVN', 'SEKA', 'PLOG', 'METH',
-  'SOKA', 'PLRM', 'AHR', 'AACT'
-]
 
 const moduleOptions = [
   'Login / Authentication',
@@ -780,42 +848,39 @@ const form = ref({
   testDescription: '',
   dependencies: '',
   conditions: '',
-  control: '',
-  assignedTesterIds: [],
   tags: [],
   steps: []
 })
 
 const cycleOptions = computed(() => {
-  const options = [{ id: 'All', name: 'All' }]
-  if (testCycles.value.length > 0) {
-    testCycles.value.forEach(cycle => {
-      options.push({ id: cycle.id, name: cycle.name })
-    })
-  }
+  const options = [{ id: 'All', name: 'All cycles' }]
+  testCycles.value.forEach(cycle => {
+    options.push({ id: String(cycle.id), name: cycle.cycle_code ? `${cycle.cycle_code} · ${cycle.name}` : cycle.name })
+  })
   return options
 })
 
 const filteredTestCases = computed(() => {
   const sourceData = apiTestCases.value
-  
+  const q = (searchQuery.value || '').trim().toLowerCase()
+
   return sourceData.filter(tc => {
-    const matchesSearch = searchQuery.value === '' || 
-      (tc.title && tc.title.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-      (tc.test_case_code && tc.test_case_code.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-      (assignedNames(tc.id).toLowerCase().includes(searchQuery.value.toLowerCase()))
-    
-    const matchesStatus = statusFilter.value === 'All' || tc.status === statusFilter.value
+    const matchesSearch = q === '' ||
+      (tc.title && tc.title.toLowerCase().includes(q)) ||
+      (tc.test_case_code && tc.test_case_code.toLowerCase().includes(q)) ||
+      (tc.module && tc.module.toLowerCase().includes(q))
+
     const matchesPriority = priorityFilter.value === 'All' || tc.priority === priorityFilter.value
     const matchesCycle = cycleFilter.value === 'All' || String(tc.cycle_id) === String(cycleFilter.value)
+    const matchesModule = moduleFilter.value === 'All' || tc.module === moduleFilter.value
 
-    return matchesSearch && matchesStatus && matchesPriority && matchesCycle
+    return matchesSearch && matchesPriority && matchesCycle && matchesModule
   }).slice().sort((a, b) => {
-    // by Test Case ID (TC + YYMMDD + running no.), oldest/first created on top
+    // by Test Case ID (TC + YYMMDD + running no.), newest/last created on top
     const ka = a.test_case_code || ''
     const kb = b.test_case_code || ''
-    if (ka && kb && ka !== kb) return ka.localeCompare(kb)
-    return Number(a.id) - Number(b.id)
+    if (ka && kb && ka !== kb) return kb.localeCompare(ka)
+    return Number(b.id) - Number(a.id)
   })
 })
 
@@ -837,7 +902,7 @@ const pageEnd = computed(() => {
   return Math.min(currentPage.value * itemsPerPage.value, filteredTestCases.value.length)
 })
 
-watch([searchQuery, statusFilter, priorityFilter, cycleFilter], () => {
+watch([searchQuery, priorityFilter, cycleFilter, moduleFilter], () => {
   currentPage.value = 1
 })
 
@@ -855,11 +920,18 @@ const getCycleName = (cycleId) => {
   return cycle?.name || cycleId
 }
 
+const hasActiveFilters = computed(() =>
+  !!(searchQuery.value || '').trim() ||
+  priorityFilter.value !== 'All' ||
+  cycleFilter.value !== 'All' ||
+  moduleFilter.value !== 'All'
+)
+
 const clearFilters = () => {
   searchQuery.value = ''
-  statusFilter.value = 'All'
   priorityFilter.value = 'All'
   cycleFilter.value = 'All'
+  moduleFilter.value = 'All'
 }
 
 const openCreateDialog = () => {
@@ -880,9 +952,7 @@ const openCreateDialog = () => {
     testDescription: '',
     dependencies: '',
     conditions: '',
-    control: '',
-    assignedTesterIds: fixedTesterUsers.value.map((u) => u.id),
-    tags: [],
+      tags: [],
     steps: []
   }
   activeTab.value = 'header'
@@ -905,10 +975,6 @@ const openEditDialog = (item) => {
     testDescription: item.test_description || '',
     dependencies: item.dependencies || '',
     conditions: item.conditions || '',
-    control: item.control_notes || '',
-    assignedTesterIds: testAssignments.value
-      .filter((a) => String(a.test_case_id) === String(item.id))
-      .map((a) => a.user_id),
     tags: [],
     steps: item.steps ? item.steps.map(s => ({
       id: s.id || 0,
@@ -916,21 +982,81 @@ const openEditDialog = (item) => {
       step_order: s.step_order || 1,
       description: s.description || '',
       expected: s.expected || '',
-      actual: s.actual || '',
-      passFail: s.pass_fail || s.passFail || 'N/A'
+      files: [],
+      existing: []
     })) : []
   }
   activeTab.value = 'header'
   dialog.value = true
+  loadStepAttachments()
 }
 
 const addStep = () => {
   if (!form.value.steps) form.value.steps = []
-  form.value.steps.push({ id: 0, test_case_id: form.value.id || 0, step_order: form.value.steps.length + 1, description: '', expected: '', passFail: 'N/A', actual: '' })
+  form.value.steps.push({ id: 0, test_case_id: form.value.id || 0, step_order: form.value.steps.length + 1, description: '', expected: '', files: [], existing: [] })
 }
 
 const removeStep = (index) => {
   form.value.steps.splice(index, 1)
+}
+
+// ---------- Step attachments ----------
+// NOTE: these endpoints must exist on the API (see notes): GET /TestStepAttachments/by-step/{id}, POST /TestStepAttachments/upload
+const STEP_ATT_URL = `${API_BASE}/TestStepAttachments`
+
+const loadStepAttachments = async () => {
+  const steps = form.value.steps || []
+  await Promise.all(steps.map(async (st) => {
+    if (!st.id) return
+    try {
+      const res = await fetch(`${STEP_ATT_URL}/by-step/${st.id}`)
+      st.existing = res.ok ? await res.json() : []
+    } catch (_) {
+      st.existing = []
+    }
+  }))
+}
+
+const deleteStepAttachment = async (step, att) => {
+  if (!confirm(`Remove "${att.file_name}" from this step?`)) return
+  try {
+    const res = await fetch(`${STEP_ATT_URL}/${att.id}`, { method: 'DELETE' })
+    if (res.ok || res.status === 404) step.existing = (step.existing || []).filter((x) => x.id !== att.id)
+    else alert(`Could not remove the attachment (HTTP ${res.status}).`)
+  } catch (err) {
+    alert('Cannot connect to the API.')
+  }
+}
+
+// After the Test Case is saved the steps have ids; match them by order and upload each step's files
+const uploadStepAttachments = async (testCaseId) => {
+  const pending = (form.value.steps || [])
+    .map((st, idx) => ({
+      order: idx + 1,
+      files: (Array.isArray(st.files) ? st.files : st.files ? [st.files] : []).filter((f) => f instanceof File)
+    }))
+    .filter((x) => x.files.length)
+  if (!pending.length) return ''
+
+  try {
+    const res = await fetch(`${API_BASE}/TestSteps?testCaseId=${testCaseId}`)
+    const saved = res.ok ? await res.json() : []
+    for (const item of pending) {
+      const target = saved.find((t) => Number(t.step_order) === item.order)
+      if (!target) return `Step ${item.order} attachment was not uploaded (step not found).`
+      for (const file of item.files) {
+        const fd = new FormData()
+        fd.append('test_step_id', target.id)
+        fd.append('file', file)
+        const up = await fetch(`${STEP_ATT_URL}/upload`, { method: 'POST', body: fd })
+        if (!up.ok) return `"${file.name}" (step ${item.order}) was not uploaded (HTTP ${up.status}).`
+      }
+    }
+  } catch (err) {
+    console.error('Step attachment upload failed:', err)
+    return 'Step attachments could not be uploaded.'
+  }
+  return ''
 }
 
 const saving = ref(false)
@@ -961,7 +1087,7 @@ const saveTestCase = async () => {
     id: form.value.id || 0,
     test_case_code: form.value.testCaseId || null, 
     title: form.value.title,
-    test_department: form.value.testDepartment || null,
+    test_department: form.value.testDepartment || null, // kept as stored; no longer edited on this form
     version_tag: getCycleNameOrEmpty(resolvedCycleId) || form.value.versionTag || null,
     module: form.value.module || null,
     cycle_id: resolvedCycleId,
@@ -970,7 +1096,6 @@ const saveTestCase = async () => {
     test_description: form.value.testDescription || null,
     dependencies: form.value.dependencies || null,
     conditions: form.value.conditions || null,
-    control_notes: form.value.control || null,
     created_by: currentUserId.value,
     steps: (form.value.steps || []).map((step, idx) => ({
       id: step.id || 0,
@@ -978,8 +1103,9 @@ const saveTestCase = async () => {
       step_order: idx + 1,
       description: step.description || '',
       expected: step.expected || '',
-      actual: step.actual || '',
-      pass_fail: step.passFail || 'N/A'
+      // Results are recorded in a Test Run, not on the test case. Neutral values keep the API contract intact.
+      actual: '',
+      pass_fail: 'N/A'
     }))
   }
 
@@ -1008,10 +1134,10 @@ const saveTestCase = async () => {
         
       }
 
-      let failedRemovals = []
-      if (testCaseId) {
-        failedRemovals = await syncTesters(testCaseId)
-      }
+      // New test cases keep the default testers silently so runs can still start
+      if (testCaseId && !isEdit.value) await assignDefaultTesters(testCaseId)
+
+      const uploadWarning = testCaseId ? await uploadStepAttachments(testCaseId) : ''
 
       dialog.value = false
       await fetchFromAPI()
@@ -1022,12 +1148,10 @@ const saveTestCase = async () => {
         expandedTreeData.value = copy
       }
 
-      if (failedRemovals.length > 0) {
-        alert(
-          `Test Case & Steps saved, but these testers could NOT be unassigned: ${failedRemovals.join(', ')}.`
-        )
+      if (uploadWarning) {
+        alert(`Test Case saved, but: ${uploadWarning}`)
       } else {
-        alert(`Test Case, Steps & Feedback successfully ${isEdit.value ? 'updated' : 'saved'}!`)
+        alert(`Test Case successfully ${isEdit.value ? 'updated' : 'saved'}!`)
       }
     } else {
       const errorText = await response.text()
@@ -1041,47 +1165,23 @@ const saveTestCase = async () => {
   }
 }
 
-const syncTesters = async (testCaseId) => {
-  const desired = form.value.assignedTesterIds || []
-  const existing = testAssignments.value.filter((a) => String(a.test_case_id) === String(testCaseId))
-  const failedRemovals = []
-
-  for (const a of existing) {
-    if (!desired.includes(a.user_id)) {
-      try {
-        const res = await fetch(`https://localhost:7049/api/TestAssignments/${a.id}`, { method: 'DELETE' })
-        if (!res.ok) {
-          const errText = await res.text().catch(() => '')
-          console.error(`Failed to remove tester assignment ${a.id}:`, errText)
-          failedRemovals.push(userNameById.value[a.user_id] || a.user_name || `User #${a.user_id}`)
-        }
-      } catch (err) {
-        console.error('Error removing tester assignment:', err)
-        failedRemovals.push(userNameById.value[a.user_id] || a.user_name || `User #${a.user_id}`)
-      }
-    }
-  }
-
-  for (const userId of desired) {
-    if (existing.some((a) => a.user_id === userId)) continue
-    const user = users.value.find((u) => u.id === userId)
+const assignDefaultTesters = async (testCaseId) => {
+  for (const user of fixedTesterUsers.value) {
     try {
-      await fetch('https://localhost:7049/api/TestAssignments', {
+      await fetch(`${API_BASE}/TestAssignments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           test_case_id: testCaseId,
-          user_id: userId,
-          department: form.value.testDepartment || user?.department || null,
+          user_id: user.id,
+          department: user.department || null,
           status: 'Pending',
         }),
       })
     } catch (err) {
-      console.error('Error adding tester assignment:', err)
+      console.error('Error adding default tester:', err)
     }
   }
-
-  return failedRemovals
 }
 
 const confirmDelete = async (id) => {
@@ -1318,10 +1418,8 @@ const exportExcel = () => {
     'Test Case ID': tc.test_case_code || ('#' + tc.id),
     'Title': tc.title || '',
     'Cycle': getCycleName(tc.cycle_id),
-    'Department': tc.test_department || '',
+    'Module': tc.module || '',
     'Priority': tc.priority || '',
-    'Status': tc.status || '',
-    'Assigned To': assignedNames(tc.id),
     'Description': tc.test_description || ''
   }))
 
@@ -1396,15 +1494,13 @@ const exportPDF = () => {
   doc.autoTable({
     startY: y,
     margin: { left: margin, right: margin },
-    head: [['ID', 'Title', 'Cycle', 'Dept', 'Priority', 'Status', 'Assigned To']],
+    head: [['ID', 'Title', 'Cycle', 'Module', 'Priority']],
     body: filteredTestCases.value.map(tc => [
       tc.test_case_code || ('#' + tc.id),
       tc.title || '',
       getCycleName(tc.cycle_id),
-      tc.test_department || '-',
-      tc.priority || '-',
-      tc.status || '-',
-      assignedNames(tc.id)
+      tc.module || '-',
+      tc.priority || '-'
     ]),
     theme: 'grid',
     styles: { fontSize: 8, font: 'arial', lineColor: [0, 0, 0], lineWidth: 0.2 },
@@ -1445,7 +1541,7 @@ watch(mainTab, (tab) => {
 
 
 const onCyclesChanged = async () => {
-  await fetchCycles()
+  await Promise.all([fetchCycles(), fetchFromAPI()])
 }
 
 
@@ -1461,7 +1557,6 @@ onMounted(async () => {
 
   await fetchCycles()
 
-  if (route.query.status) statusFilter.value = route.query.status
   if (route.query.priority) priorityFilter.value = route.query.priority
   if (route.query.cycle) cycleFilter.value = String(route.query.cycle)
   if (route.query.tab === 'cycles') mainTab.value = 'cycles'
@@ -1781,9 +1876,32 @@ onMounted(async () => {
   opacity: 1 !important;
 }
 .save-btn:hover { background-color: #0d5f59 !important; }
+.info-icon { opacity: 0.55; cursor: help; vertical-align: text-bottom; }
+.info-icon:hover { opacity: 1; }
 .save-btn.v-btn--disabled {
   background-color: #0f766e !important;
   color: #ffffff !important;
   opacity: 0.65 !important;
 }
+
+/* ===== Warna ikut tema (light & dark) — chip cycle, butang actions, footer, pagination ===== */
+.v-theme--light .cycle-chip { background-color: #e0f2fe !important; color: #075985 !important; opacity: 1 !important; }
+.v-theme--dark  .cycle-chip { background-color: rgba(125, 211, 252, 0.18) !important; color: #7dd3fc !important; opacity: 1 !important; }
+
+.v-theme--light .teal-text { color: #0f766e !important; }
+.v-theme--dark  .teal-text { color: #5eead4 !important; }
+
+.act-btn { opacity: 1 !important; }
+.act-btn.v-btn--disabled { opacity: 0.4 !important; }
+.v-theme--light .act-edit   { color: #1565c0 !important; background-color: rgba(21, 101, 192, 0.12) !important; }
+.v-theme--light .act-view   { color: #00796b !important; background-color: rgba(0, 121, 107, 0.12) !important; }
+.v-theme--light .act-users  { color: #7b1fa2 !important; background-color: rgba(123, 31, 162, 0.12) !important; }
+.v-theme--light .act-delete { color: #c62828 !important; background-color: rgba(198, 40, 40, 0.12) !important; }
+.v-theme--dark  .act-edit   { color: #90caf9 !important; background-color: rgba(144, 202, 249, 0.16) !important; }
+.v-theme--dark  .act-view   { color: #80cbc4 !important; background-color: rgba(128, 203, 196, 0.16) !important; }
+.v-theme--dark  .act-users  { color: #ce93d8 !important; background-color: rgba(206, 147, 216, 0.16) !important; }
+.v-theme--dark  .act-delete { color: #ef9a9a !important; background-color: rgba(239, 154, 154, 0.16) !important; }
+
+:deep(.v-pagination .v-btn) { color: rgb(var(--v-theme-on-surface)) !important; opacity: 1 !important; }
+:deep(.v-pagination .v-pagination__item--is-active .v-btn) { background-color: #0f766e !important; color: #ffffff !important; }
 </style>

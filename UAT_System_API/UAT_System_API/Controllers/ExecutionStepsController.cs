@@ -32,9 +32,17 @@ namespace UAT_System_API.Controllers
             return "DEF-" + (max + 1).ToString("000");
         }
 
-        // GET api/ExecutionSteps/defects
-        // Used by FeedbackView.vue (Defects tab).
-        // Literal route "defects" takes priority over "{id}", so no clash.
+        
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<ExecutionSteps>>> GetAll()
+        {
+            return Ok(await _context.ExecutionSteps
+                .OrderBy(es => es.run_id_fk)
+                .ThenBy(es => es.sequence_order)
+                .ToListAsync());
+        }
+
+        
         [HttpGet("defects")]
         public async Task<ActionResult> GetDefects()
         {
@@ -65,9 +73,7 @@ namespace UAT_System_API.Controllers
             return Ok(defects);
         }
 
-        // GET api/ExecutionSteps/by-run/5
-        // Used by TestRunsPage.vue and TestCasepage.vue.
-        // Always returns 200 with a list (empty if the run has no steps yet).
+        
         [HttpGet("by-run/{runId:int}")]
         public async Task<ActionResult<IEnumerable<ExecutionSteps>>> GetByRun(int runId)
         {
@@ -79,7 +85,7 @@ namespace UAT_System_API.Controllers
             return Ok(steps);
         }
 
-        // GET api/ExecutionSteps/5
+      
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ExecutionSteps>> GetExecutionStep(int id)
         {
@@ -88,8 +94,7 @@ namespace UAT_System_API.Controllers
             return step;
         }
 
-        // POST api/ExecutionSteps
-        // Called the first time a step in a run is saved.
+        
         [HttpPost]
         public async Task<ActionResult<ExecutionSteps>> PostExecutionStep(ExecutionSteps step)
         {
